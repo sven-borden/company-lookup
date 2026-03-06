@@ -1,0 +1,22 @@
+# dependencies
+node_modules/
+
+# env files
+.env
+.env.local
+.env.*.local
+
+# next.js
+apps/web/.next/
+apps/web/out/
+
+# build
+dist/
+*.tsbuildinfo
+
+# firebase
+.firebase/
+
+# misc
+.DS_Store
+*.log
