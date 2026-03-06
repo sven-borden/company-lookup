@@ -1,0 +1,15 @@
+{
+  "name": "company-lookup",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "functions"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=apps/web",
+    "build": "npm run build --workspace=apps/web",
+    "lint": "npm run lint --workspace=apps/web",
+    "emulators": "firebase emulators:start --project=company-lookup"
+  }
+}
