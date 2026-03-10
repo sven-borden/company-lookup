@@ -1,10 +1,70 @@
 import { adminDb } from "../firebase/admin";
 import { CompanyShort, CompanyFull } from "@company-lookup/types";
 
+export interface BrowseFilters {
+  canton?: string;
+  sortBy?: "name" | "uid" | "canton" | "status";
+  sortOrder?: "asc" | "desc";
+  page?: number;
+  pageSize?: number;
+}
+
+export interface BrowseResult {
+  companies: CompanyShort[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 export interface SearchFilters {
   canton?: string;
   legalFormId?: number;
   activeOnly?: boolean;
+}
+
+/**
+ * Paginates and filters companies from Firestore for the Browse page.
+ */
+export async function browseCompanies(filters: BrowseFilters = {}): Promise<BrowseResult> {
+  const {
+    canton,
+    sortBy = "name",
+    sortOrder = "asc",
+    page = 1,
+    pageSize = 20,
+  } = filters;
+
+  const clampedPageSize = Math.min(Math.max(1, pageSize), 100);
+  const clampedPage = Math.max(1, page);
+  const offset = (clampedPage - 1) * clampedPageSize;
+
+  // Map "name" → "nameLower" for case-insensitive sort; others are direct field names
+  const sortField = sortBy === "name" ? "nameLower" : sortBy;
+
+  let baseQuery: FirebaseFirestore.Query = adminDb.collection("companies");
+  if (canton) {
+    baseQuery = baseQuery.where("canton", "==", canton);
+  }
+
+  const [countSnapshot, dataSnapshot] = await Promise.all([
+    baseQuery.count().get(),
+    baseQuery.orderBy(sortField, sortOrder).offset(offset).limit(clampedPageSize).get(),
+  ]);
+
+  const total = countSnapshot.data().count;
+  const companies = dataSnapshot.docs.map((doc: any) => ({
+    ...doc.data(),
+    uid: doc.id,
+  })) as CompanyShort[];
+
+  return {
+    companies,
+    total,
+    page: clampedPage,
+    pageSize: clampedPageSize,
+    totalPages: Math.ceil(total / clampedPageSize),
+  };
 }
 
 /**
@@ -19,13 +79,13 @@ export async function searchCompanies(
   // If no name is provided, return empty list or handle accordingly
   if (!name || name.trim() === "") return [];
 
-  const normalizedName = name.trim();
-  
-  // Basic prefix search: name >= query and name <= query + \uf8ff
+  const normalizedName = name.trim().toLowerCase();
+
+  // Case-insensitive prefix search using the stored nameLower field
   let query: any = adminDb
     .collection("companies")
-    .where("name", ">=", normalizedName)
-    .where("name", "<=", normalizedName + "\uf8ff")
+    .where("nameLower", ">=", normalizedName)
+    .where("nameLower", "<=", normalizedName + "\uf8ff")
     .limit(20);
 
   if (filters?.canton) {

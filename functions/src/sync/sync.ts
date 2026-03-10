@@ -3,7 +3,7 @@ import { defineString } from "firebase-functions/params";
 import { getFirestore, WriteBatch } from "firebase-admin/firestore";
 import { initializeApp } from "firebase-admin/app";
 import { ZefixClient } from "../zefix/client";
-import { CompanyFull } from "@company-lookup/types";
+import { CompanyFull, CompanyShort, CANTONS, CANTON_SCHEDULE } from "@company-lookup/types";
 import { logger } from "firebase-functions/v2";
 
 initializeApp();
@@ -14,15 +14,31 @@ const zefixBaseUrl = defineString("ZEFIX_API_BASE_URL", {
   default: "https://www.zefix.admin.ch/ZefixPublicREST",
 });
 
-const CANTONS = [
-  "AG", "AI", "AR", "BE", "BL", "BS", "FR", "GE", "GL", "GR",
-  "JU", "LU", "NE", "NW", "OW", "SG", "SH", "SO", "SZ", "TG",
-  "TI", "UR", "VD", "VS", "ZG", "ZH",
-];
+export const BATCH_SIZE = 500;
 
-const BATCH_SIZE = 500;
+async function fetchCompaniesForPrefix(
+  client: ZefixClient,
+  prefix: string,
+  canton: string
+): Promise<CompanyShort[]> {
+  try {
+    return await client.searchCompanies({ name: `${prefix}*`, canton });
+  } catch (err) {
+    const isTooBig =
+      err instanceof Error && err.message.includes("RESULTLIST_TO_LARGE");
+    if (isTooBig) {
+      const results: CompanyShort[] = [];
+      for (const letter of "abcdefghijklmnopqrstuvwxyz") {
+        const sub = await fetchCompaniesForPrefix(client, `${prefix}${letter}`, canton);
+        results.push(...sub);
+      }
+      return results;
+    }
+    throw err;
+  }
+}
 
-function createClient(): ZefixClient {
+export function createClient(): ZefixClient {
   return new ZefixClient({
     baseUrl: zefixBaseUrl.value(),
     username: zefixUsername.value(),
@@ -30,7 +46,7 @@ function createClient(): ZefixClient {
   });
 }
 
-async function syncReferenceData(client: ZefixClient): Promise<void> {
+export async function syncReferenceData(client: ZefixClient): Promise<void> {
   const db = getFirestore();
 
   const [legalForms, communities, registries] = await Promise.all([
@@ -77,13 +93,23 @@ async function syncReferenceData(client: ZefixClient): Promise<void> {
   logger.info("Reference data sync complete");
 }
 
-async function syncCompaniesForCanton(
+export async function syncCompaniesForCanton(
   client: ZefixClient,
   canton: string
 ): Promise<number> {
   const db = getFirestore();
 
-  const companies = await client.searchCompanies({ name: "*", canton });
+  const seen = new Set<number>();
+  const companies: CompanyShort[] = [];
+  for (const letter of "abcdefghijklmnopqrstuvwxyz") {
+    const batch = await fetchCompaniesForPrefix(client, letter, canton);
+    for (const c of batch) {
+      if (!seen.has(c.ehraid)) {
+        seen.add(c.ehraid);
+        companies.push(c);
+      }
+    }
+  }
   logger.info(`Canton ${canton}: found ${companies.length} companies`);
 
   let synced = 0;
@@ -122,34 +148,92 @@ async function syncCompaniesForCanton(
     await batch.commit();
   }
 
-  logger.info(`Canton ${canton}: sync complete — ${synced} companies`);
+  // Update canton stats
+  const countSnapshot = await db
+    .collection("companies")
+    .where("canton", "==", canton)
+    .count()
+    .get();
+  const totalCount = countSnapshot.data().count;
+
+  await db.collection("canton_stats").doc(canton).set(
+    {
+      totalCompanies: totalCount,
+      lastSyncedAt: new Date(),
+    },
+    { merge: true }
+  );
+
+  logger.info(`Canton ${canton}: sync complete — ${synced} companies (Total in DB: ${totalCount})`);
   return synced;
 }
 
 export const syncZefixData = onSchedule(
   {
-    schedule: "every sunday 02:00",
+    schedule: "every day 02:00",
     timeZone: "Europe/Zurich",
     timeoutSeconds: 3600,
     memory: "1GiB",
   },
   async () => {
-    const client = createClient();
+    const db = getFirestore();
+    const logRef = db.collection("cron_logs").doc();
+    const startTime = new Date();
 
-    logger.info("Starting Zefix sync");
+    await logRef.set({
+      functionName: "syncZefixData",
+      startTime,
+      status: "running",
+    });
 
-    await syncReferenceData(client);
+    try {
+      const client = createClient();
+      const dayOfWeek = startTime.getDay();
+      const cantonsToSync = CANTON_SCHEDULE[dayOfWeek] || [];
 
-    let totalSynced = 0;
-    for (const canton of CANTONS) {
-      try {
-        const count = await syncCompaniesForCanton(client, canton);
-        totalSynced += count;
-      } catch (err) {
-        logger.error(`Failed to sync canton ${canton}: ${err}`);
+      logger.info(
+        `Starting Zefix sync for day ${dayOfWeek} (Cantons: ${cantonsToSync.join(
+          ", "
+        )})`
+      );
+
+      // Sync reference data daily to ensure we have the latest legal forms/communities
+      await syncReferenceData(client);
+
+      let totalSynced = 0;
+      const results: Record<string, number> = {};
+
+      for (const canton of cantonsToSync) {
+        try {
+          const count = await syncCompaniesForCanton(client, canton);
+          totalSynced += count;
+          results[canton] = count;
+        } catch (err) {
+          logger.error(`Failed to sync canton ${canton}: ${err}`);
+          results[canton] = -1;
+        }
       }
-    }
 
-    logger.info(`Zefix sync complete — ${totalSynced} companies total`);
+      await logRef.update({
+        endTime: new Date(),
+        status: "success",
+        totalSynced,
+        results,
+        cantons: cantonsToSync,
+      });
+
+      logger.info(
+        `Zefix sync complete for day ${dayOfWeek} — ${totalSynced} companies total`
+      );
+    } catch (err) {
+      logger.error(`Cron sync failed: ${err}`);
+      await logRef.update({
+        endTime: new Date(),
+        status: "failed",
+        error: String(err),
+      });
+      throw err;
+    }
   }
 );
+

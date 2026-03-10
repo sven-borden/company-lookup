@@ -1,3 +1,4 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ZefixClient, ZefixApiError } from "./client";
 import type { CompanyShort, CompanyFull, LegalForm } from "@company-lookup/types";
 
@@ -49,166 +50,154 @@ const mockCompanyFull: CompanyFull = {
   zefixDetailWeb: { de: "" },
 };
 
+function makeJsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+function makeRawResponse(body: string, status: number): Response {
+  return new Response(body, { status });
+}
+
 let client: ZefixClient;
-let fetchMock: ReturnType<typeof createFetchMock>;
+let fetchSpy: ReturnType<typeof vi.spyOn>;
 
-function createFetchMock() {
-  const fn = Object.assign(
-    async (...args: Parameters<typeof fetch>): Promise<Response> => {
-      return fn._impl(...args);
-    },
-    {
-      _impl: async (..._args: Parameters<typeof fetch>): Promise<Response> => {
-        return new Response("", { status: 500 });
-      },
-      mockResolvedValue(body: unknown, status = 200) {
-        fn._impl = async () =>
-          new Response(JSON.stringify(body), {
-            status,
-            headers: { "Content-Type": "application/json" },
-          });
-      },
-      mockRejectedValue(status: number, body?: unknown) {
-        fn._impl = async () =>
-          new Response(body ? JSON.stringify(body) : "", { status });
-      },
-    }
-  );
-  return fn;
-}
-
-function setup() {
-  fetchMock = createFetchMock();
-  (globalThis as any).fetch = fetchMock;
+beforeEach(() => {
+  vi.clearAllMocks();
+  fetchSpy = vi.spyOn(globalThis, "fetch");
   client = new ZefixClient(mockConfig);
-}
+});
 
-// --- Tests ---
-
-async function testSearchCompanies() {
-  setup();
-  fetchMock.mockResolvedValue([mockCompanyShort]);
-
-  const result = await client.searchCompanies({ name: "Test" });
-  assert(Array.isArray(result), "should return array");
-  assert(result[0].name === "Test AG", "should have correct name");
-  console.log("  PASS: searchCompanies");
-}
-
-async function testGetCompanyByUid() {
-  setup();
-  fetchMock.mockResolvedValue([mockCompanyFull]);
-
-  const result = await client.getCompanyByUid("CHE-123.456.789");
-  assert(Array.isArray(result), "should return array");
-  assert(result[0].purpose === "Test purpose", "should have purpose");
-  console.log("  PASS: getCompanyByUid");
-}
-
-async function testGetCompanyByEhraid() {
-  setup();
-  fetchMock.mockResolvedValue(mockCompanyFull);
-
-  const result = await client.getCompanyByEhraid(12345);
-  assert(result.ehraid === 12345, "should have correct ehraid");
-  console.log("  PASS: getCompanyByEhraid");
-}
-
-async function testGetCompanyByChid() {
-  setup();
-  fetchMock.mockResolvedValue([mockCompanyFull]);
-
-  const result = await client.getCompanyByChid("CH12345678");
-  assert(Array.isArray(result), "should return array");
-  console.log("  PASS: getCompanyByChid");
-}
-
-async function testGetLegalForms() {
-  setup();
-  const mockForms: LegalForm[] = [
-    { id: 1, uid: "0106", name: { de: "AG" }, shortName: { de: "AG" } },
-  ];
-  fetchMock.mockResolvedValue(mockForms);
-
-  const result = await client.getLegalForms();
-  assert(result.length === 1, "should return 1 legal form");
-  console.log("  PASS: getLegalForms");
-}
-
-async function testGetCommunities() {
-  setup();
-  fetchMock.mockResolvedValue([{ bfsId: 261, canton: "ZH", name: "Zürich", registryOfCommerceId: 1 }]);
-
-  const result = await client.getCommunities();
-  assert(result[0].bfsId === 261, "should have correct bfsId");
-  console.log("  PASS: getCommunities");
-}
-
-async function testGetRegistriesOfCommerce() {
-  setup();
-  fetchMock.mockResolvedValue([{ registryOfCommerceId: 1, canton: "ZH" }]);
-
-  const result = await client.getRegistriesOfCommerce();
-  assert(result[0].registryOfCommerceId === 1, "should have correct id");
-  console.log("  PASS: getRegistriesOfCommerce");
-}
-
-async function testErrorHandling() {
-  setup();
-  fetchMock.mockRejectedValue(404, { error: { type: "NOT_FOUND", message: "Not found" } });
-
-  try {
-    await client.getCompanyByEhraid(99999);
-    assert(false, "should have thrown");
-  } catch (e) {
-    const err = e as ZefixApiError;
-    assert(err instanceof ZefixApiError, "should be ZefixApiError");
-    assert(err.status === 404, "should have 404 status");
-    assert(err.errorResponse?.error.type === "NOT_FOUND", "should have error type");
-  }
-  console.log("  PASS: errorHandling");
-}
-
-async function testBasicAuthHeader() {
-  setup();
-  let capturedHeaders: HeadersInit | undefined;
-  (globalThis as any).fetch = async (_url: string, init?: RequestInit) => {
-    capturedHeaders = init?.headers;
-    return new Response(JSON.stringify([]), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
+describe("ZefixClient", () => {
+  describe("searchCompanies", () => {
+    it("returns array of companies", async () => {
+      fetchSpy.mockResolvedValue(makeJsonResponse([mockCompanyShort]));
+      const result = await client.searchCompanies({ name: "Test" });
+      expect(Array.isArray(result)).toBe(true);
+      expect(result[0].name).toBe("Test AG");
     });
-  };
-  client = new ZefixClient(mockConfig);
+  });
 
-  await client.searchCompanies({ name: "Test" });
-  const expected = "Basic " + Buffer.from("user:pass").toString("base64");
-  assert(
-    (capturedHeaders as Record<string, string>)?.Authorization === expected,
-    "should send correct Basic Auth header"
-  );
-  console.log("  PASS: basicAuthHeader");
-}
+  describe("getCompanyByUid", () => {
+    it("returns array of full companies", async () => {
+      fetchSpy.mockResolvedValue(makeJsonResponse([mockCompanyFull]));
+      const result = await client.getCompanyByUid("CHE-123.456.789");
+      expect(Array.isArray(result)).toBe(true);
+      expect(result[0].purpose).toBe("Test purpose");
+    });
 
-function assert(condition: boolean, msg: string) {
-  if (!condition) throw new Error(`Assertion failed: ${msg}`);
-}
+    it("URL-encodes the uid", async () => {
+      fetchSpy.mockResolvedValue(makeJsonResponse([]));
+      await client.getCompanyByUid("CHE-123.456.789");
+      const calledUrl = fetchSpy.mock.calls[0][0] as string;
+      expect(calledUrl).toContain(encodeURIComponent("CHE-123.456.789"));
+    });
+  });
 
-async function runTests() {
-  console.log("ZefixClient tests:");
-  await testSearchCompanies();
-  await testGetCompanyByUid();
-  await testGetCompanyByEhraid();
-  await testGetCompanyByChid();
-  await testGetLegalForms();
-  await testGetCommunities();
-  await testGetRegistriesOfCommerce();
-  await testErrorHandling();
-  await testBasicAuthHeader();
-  console.log("All tests passed!");
-}
+  describe("getCompanyByEhraid", () => {
+    it("returns a single full company", async () => {
+      fetchSpy.mockResolvedValue(makeJsonResponse(mockCompanyFull));
+      const result = await client.getCompanyByEhraid(12345);
+      expect(result.ehraid).toBe(12345);
+    });
+  });
 
-runTests().catch((err) => {
-  console.error("Test failed:", err);
-  process.exit(1);
+  describe("getCompanyByChid", () => {
+    it("returns array of full companies", async () => {
+      fetchSpy.mockResolvedValue(makeJsonResponse([mockCompanyFull]));
+      const result = await client.getCompanyByChid("CH12345678");
+      expect(Array.isArray(result)).toBe(true);
+    });
+  });
+
+  describe("getLegalForms", () => {
+    it("returns legal forms", async () => {
+      const mockForms: LegalForm[] = [
+        { id: 1, uid: "0106", name: { de: "AG" }, shortName: { de: "AG" } },
+      ];
+      fetchSpy.mockResolvedValue(makeJsonResponse(mockForms));
+      const result = await client.getLegalForms();
+      expect(result).toHaveLength(1);
+    });
+  });
+
+  describe("getCommunities", () => {
+    it("returns communities", async () => {
+      fetchSpy.mockResolvedValue(
+        makeJsonResponse([{ bfsId: 261, canton: "ZH", name: "Zürich", registryOfCommerceId: 1 }])
+      );
+      const result = await client.getCommunities();
+      expect(result[0].bfsId).toBe(261);
+    });
+  });
+
+  describe("getRegistriesOfCommerce", () => {
+    it("returns registries", async () => {
+      fetchSpy.mockResolvedValue(
+        makeJsonResponse([{ registryOfCommerceId: 1, canton: "ZH" }])
+      );
+      const result = await client.getRegistriesOfCommerce();
+      expect(result[0].registryOfCommerceId).toBe(1);
+    });
+  });
+
+  describe("error handling", () => {
+    it("throws ZefixApiError with status and errorResponse on JSON error body", async () => {
+      fetchSpy.mockResolvedValue(
+        makeJsonResponse({ error: { type: "NOT_FOUND", message: "Not found" } }, 404)
+      );
+      await expect(client.getCompanyByEhraid(99999)).rejects.toMatchObject({
+        status: 404,
+        errorResponse: { error: { type: "NOT_FOUND" } },
+      });
+    });
+
+    it("throws ZefixApiError with correct status on 5xx", async () => {
+      fetchSpy.mockResolvedValue(makeJsonResponse({ error: { type: "SERVER_ERROR", message: "err" } }, 500));
+      await expect(client.searchCompanies({ name: "X" })).rejects.toMatchObject({ status: 500 });
+    });
+
+    it("throws ZefixApiError with no errorResponse when body is not JSON", async () => {
+      fetchSpy.mockResolvedValue(makeRawResponse("Internal Server Error", 500));
+      const err = await client.getCompanyByEhraid(1).catch((e) => e) as ZefixApiError;
+      expect(err).toBeInstanceOf(ZefixApiError);
+      expect(err.status).toBe(500);
+      expect(err.errorResponse).toBeUndefined();
+    });
+
+    it("uses fallback message when errorResponse is absent", async () => {
+      fetchSpy.mockResolvedValue(makeRawResponse("bad", 503));
+      const err = await client.getCompanyByEhraid(1).catch((e) => e) as ZefixApiError;
+      expect(err.message).toBe("Zefix API error: 503");
+    });
+
+    it("throws ZefixApiError instance", async () => {
+      fetchSpy.mockResolvedValue(makeJsonResponse({ error: { type: "NOT_FOUND", message: "nf" } }, 404));
+      await expect(client.getCompanyByEhraid(99999)).rejects.toBeInstanceOf(ZefixApiError);
+    });
+  });
+
+  describe("constructor", () => {
+    it("strips trailing slash from baseUrl", async () => {
+      fetchSpy.mockResolvedValue(makeJsonResponse([]));
+      const c = new ZefixClient({ ...mockConfig, baseUrl: "https://zefix.example.com/" });
+      await c.getLegalForms();
+      const calledUrl = fetchSpy.mock.calls[0][0] as string;
+      expect(calledUrl).not.toContain("//api");
+      expect(calledUrl).toMatch(/^https:\/\/zefix\.example\.com\/api/);
+    });
+
+    it("sends correct Basic Auth header", async () => {
+      let capturedHeaders: HeadersInit | undefined;
+      fetchSpy.mockImplementation(async (_url, init) => {
+        capturedHeaders = init?.headers;
+        return makeJsonResponse([]);
+      });
+      await client.searchCompanies({ name: "Test" });
+      const expected = "Basic " + Buffer.from("user:pass").toString("base64");
+      expect((capturedHeaders as Record<string, string>)?.Authorization).toBe(expected);
+    });
+  });
 });
