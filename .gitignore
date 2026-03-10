@@ -16,6 +16,7 @@ dist/
 
 # firebase
 .firebase/
+*-firebase-adminsdk-*.json
 
 # misc
 .DS_Store
