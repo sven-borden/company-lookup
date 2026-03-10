@@ -30,6 +30,28 @@ async function zefixGet<T>(path: string): Promise<T> {
   return res.json();
 }
 
+async function fetchCompaniesForPrefix(
+  prefix: string,
+  canton: string
+): Promise<Array<{ ehraid: number }>> {
+  try {
+    return await zefixPost<Array<{ ehraid: number }>>("/api/v1/company/search", {
+      name: `${prefix}*`,
+      canton,
+    });
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("RESULTLIST_TO_LARGE")) {
+      const results: Array<{ ehraid: number }> = [];
+      for (const letter of "abcdefghijklmnopqrstuvwxyz") {
+        const sub = await fetchCompaniesForPrefix(`${prefix}${letter}`, canton);
+        results.push(...sub);
+      }
+      return results;
+    }
+    throw err;
+  }
+}
+
 async function syncCompaniesForCanton(canton: string): Promise<number> {
   console.log(`[sync] Canton ${canton}: starting company discovery`);
   const seen = new Set<number>();
