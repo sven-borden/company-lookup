@@ -15,6 +15,15 @@ const zefixBaseUrl = defineString("ZEFIX_API_BASE_URL", {
 });
 
 export const BATCH_SIZE = 500;
+const MAX_SOGC_PUB_ENTRIES = 100;
+
+function trimCompanyForFirestore(full: CompanyFull): CompanyFull {
+  if (!full.sogcPub || full.sogcPub.length <= MAX_SOGC_PUB_ENTRIES) return full;
+  const sorted = [...full.sogcPub].sort((a, b) =>
+    b.sogcDate.localeCompare(a.sogcDate)
+  );
+  return { ...full, sogcPub: sorted.slice(0, MAX_SOGC_PUB_ENTRIES) };
+}
 
 async function fetchCompaniesForPrefix(
   client: ZefixClient,
@@ -135,9 +144,10 @@ export async function syncCompaniesForCanton(
       continue;
     }
 
-    const docRef = db.collection("companies").doc(full.uid);
+    const trimmed = trimCompanyForFirestore(full);
+    const docRef = db.collection("companies").doc(trimmed.uid);
     batch.set(docRef, {
-      ...full,
+      ...trimmed,
       syncedAt: new Date(),
     });
 

@@ -3,6 +3,15 @@ import { adminDb } from "@/lib/firebase/admin";
 import type { CompanyFull } from "@company-lookup/types";
 
 const BATCH_SIZE = 500;
+const MAX_SOGC_PUB_ENTRIES = 100;
+
+function trimCompanyForFirestore(full: CompanyFull): CompanyFull {
+  if (!full.sogcPub || full.sogcPub.length <= MAX_SOGC_PUB_ENTRIES) return full;
+  const sorted = [...full.sogcPub].sort((a, b) =>
+    b.sogcDate.localeCompare(a.sogcDate)
+  );
+  return { ...full, sogcPub: sorted.slice(0, MAX_SOGC_PUB_ENTRIES) };
+}
 
 function makeAuthHeader(): string {
   const username = process.env.ZEFIX_USERNAME ?? "";
@@ -105,10 +114,11 @@ export async function POST(
         continue;
       }
 
-      const docRef = adminDb.collection("companies").doc(full.uid);
+      const trimmed = trimCompanyForFirestore(full);
+      const docRef = adminDb.collection("companies").doc(trimmed.uid);
       batch.set(docRef, {
-        ...full,
-        nameLower: (full.name as string).toLowerCase(),
+        ...trimmed,
+        nameLower: (trimmed.name as string).toLowerCase(),
         syncedAt: new Date(),
       });
 
