@@ -7,7 +7,16 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(gh pr:*)"
+      "Bash(gh pr:*)",
+      "Bash(gh issue:*)",
+      "Bash(find /c/Users/glagl/Documents/GitHub/company-lookup -type f \\\\\\( -name \"jest.config.*\" -o -name \"vitest.config.*\" -o -name \"tsconfig.test.*\" \\\\\\) 2>/dev/null | head -20)",
+      "Bash(ls -la /c/Users/glagl/Documents/GitHub/company-lookup/*.config.* 2>/dev/null)",
+      "mcp__plugin_firebase_firebase__firestore_query_collection",
+      "Bash(cd \"C:\\\\Users\\\\glagl\\\\Documents\\\\GitHub\\\\company-lookup\" && npm install 2>&1 | tail -5)",
+      "Bash(cd \"C:\\\\Users\\\\glagl\\\\Documents\\\\GitHub\\\\company-lookup\" && npm run test --workspace=functions 2>&1)",
+      "Bash(find \"C:\\\\Users\\\\glagl\\\\Documents\\\\GitHub\\\\company-lookup\" -name \"BACKEND_CONTRACT.md\" -o -name \"*backend*\" -o -name \"*contract*\" 2>/dev/null | head -20)",
+      "Bash(firebase deploy:*)",
+      "Bash(cd apps/web && npx vercel deploy --prod 2>&1)"
     ]
   }
 }
