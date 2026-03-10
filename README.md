@@ -29,10 +29,10 @@ company-lookup/
 npm install
 ```
 
-2. Copy `.env.example` to `.env` and fill in values:
+2. Copy `.env.example` to `.env.local` inside the `apps/web` directory and fill in values:
 
 ```bash
-cp .env.example .env
+cp apps/web/.env.example apps/web/.env.local
 ```
 
 3. Start the Next.js dev server:
