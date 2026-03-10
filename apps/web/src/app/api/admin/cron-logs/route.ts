@@ -1,3 +1,4 @@
+import type { QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase/admin";
 
@@ -9,7 +10,7 @@ export async function GET() {
       .limit(20)
       .get();
 
-    const logs = snapshot.docs.map((doc) => ({
+    const logs = snapshot.docs.map((doc: QueryDocumentSnapshot) => ({
       id: doc.id,
       ...doc.data(),
       startTime: doc.data().startTime?.toDate?.() || doc.data().startTime,
