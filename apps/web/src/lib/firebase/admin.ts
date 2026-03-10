@@ -1,5 +1,5 @@
 import { initializeApp, getApps, cert, getApp } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
+import { getFirestore, type Firestore } from "firebase-admin/firestore";
 
 /**
  * Robust Firebase Admin initialization for Next.js Server Components.
@@ -43,7 +43,7 @@ function getAdminApp() {
 }
 
 // Ensure the app is initialized before getting Firestore
-let adminDb: any;
+let adminDb: Firestore;
 try {
   const app = getAdminApp();
   adminDb = getFirestore(app);

@@ -42,3 +42,14 @@ A high-contrast monochromatic base with a single, deliberate accent.
 - **Transitions:** Fast and crisp. No bouncy or slow animations. Use `duration-150` or `duration-200`.
 - **States:** Hover states should be a subtle background fill change (e.g., `hover:bg-zinc-100`).
 - **Empty States:** Clear, centered, and typography-focused. No large illustrations; use simple text and maybe a single icon.
+
+## 6. Notifications (Toasts)
+
+- **Position:** Bottom-right corner.
+- **Design:** Minimalist cards with a simple colored indicator dot/square. No heavy icons.
+- **Color Coding:**
+  - **Success:** Emerald indicator, white/black background.
+  - **Error:** Red indicator, white/black background.
+  - **Info:** Zinc indicator, white/black background.
+- **Behavior:** Auto-dismiss after 5 seconds. Provide a clear "Close" text button.
+- **Typography:** Bold, uppercase text for the message to maintain the "Swiss Modern" technical feel.

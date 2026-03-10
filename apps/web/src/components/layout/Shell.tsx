@@ -20,11 +20,11 @@ export function Shell({ children }: ShellProps) {
           </Link>
           <div className="flex items-center gap-6">
             <nav className="hidden md:flex items-center gap-4">
-              <Link href="/search" className="text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-black dark:hover:text-white transition-colors">
+              <Link href="/browse" className="text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-black dark:hover:text-white transition-colors">
                 Browse
               </Link>
-              <Link href="/docs/Branding.md" className="text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-black dark:hover:text-white transition-colors">
-                Branding
+              <Link href="/admin/dashboard" className="text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-black dark:hover:text-white transition-colors">
+                Dashboard
               </Link>
             </nav>
           </div>
