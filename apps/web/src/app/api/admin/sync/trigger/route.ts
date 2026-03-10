@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase/admin";
-import { CANTON_SCHEDULE } from "@company-lookup/types";
+import { CANTON_SCHEDULE, type CompanyFull } from "@company-lookup/types";
 
 const BATCH_SIZE = 500;
 
@@ -31,19 +31,27 @@ async function zefixGet<T>(path: string): Promise<T> {
 }
 
 async function syncCompaniesForCanton(canton: string): Promise<number> {
-  const companies: Array<{ ehraid: number }> = await zefixPost("/api/v1/company/search", {
-    name: "*",
-    canton: canton.toUpperCase(),
-  });
+  console.log(`[sync] Canton ${canton}: starting company discovery`);
+  const seen = new Set<number>();
+  const companies: Array<{ ehraid: number }> = [];
+  for (const letter of "abcdefghijklmnopqrstuvwxyz") {
+    const before = companies.length;
+    const batch = await fetchCompaniesForPrefix(letter, canton.toUpperCase());
+    for (const c of batch) {
+      if (!seen.has(c.ehraid)) { seen.add(c.ehraid); companies.push(c); }
+    }
+    console.log(`[sync] Canton ${canton}: letter "${letter}" done — +${companies.length - before} new (${companies.length} total)`);
+  }
+  console.log(`[sync] Canton ${canton}: discovery complete — ${companies.length} unique companies`);
 
   let synced = 0;
   let batch = adminDb.batch();
   let batchCount = 0;
 
   for (const company of companies) {
-    let full: any;
+    let full: CompanyFull;
     try {
-      full = await zefixGet(`/api/v1/company/ehraid/${company.ehraid}`);
+      full = await zefixGet<CompanyFull>(`/api/v1/company/ehraid/${company.ehraid}`);
     } catch {
       continue;
     }
@@ -58,10 +66,15 @@ async function syncCompaniesForCanton(canton: string): Promise<number> {
     batchCount++;
     synced++;
 
+    if (synced % 100 === 0) {
+      console.log(`[sync] Canton ${canton}: fetched details for ${synced}/${companies.length} companies`);
+    }
+
     if (batchCount >= BATCH_SIZE) {
       await batch.commit();
       batch = adminDb.batch();
       batchCount = 0;
+      console.log(`[sync] Canton ${canton}: committed batch — ${synced}/${companies.length} written`);
     }
   }
 

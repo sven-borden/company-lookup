@@ -1,3 +1,4 @@
+import type { Query, QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { adminDb } from "../firebase/admin";
 import { CompanyShort, CompanyFull } from "@company-lookup/types";
 
@@ -53,7 +54,7 @@ export async function browseCompanies(filters: BrowseFilters = {}): Promise<Brow
   ]);
 
   const total = countSnapshot.data().count;
-  const companies = dataSnapshot.docs.map((doc: any) => ({
+  const companies = dataSnapshot.docs.map((doc: QueryDocumentSnapshot) => ({
     ...doc.data(),
     uid: doc.id,
   })) as CompanyShort[];
@@ -82,7 +83,7 @@ export async function searchCompanies(
   const normalizedName = name.trim().toLowerCase();
 
   // Case-insensitive prefix search using the stored nameLower field
-  let query: any = adminDb
+  let query: Query = adminDb
     .collection("companies")
     .where("nameLower", ">=", normalizedName)
     .where("nameLower", "<=", normalizedName + "\uf8ff")
@@ -97,7 +98,7 @@ export async function searchCompanies(
 
   const snapshot = await query.get();
   
-  return snapshot.docs.map((doc: any) => ({
+  return snapshot.docs.map((doc: QueryDocumentSnapshot) => ({
     ...doc.data(),
     // Ensure UID is present if it's the doc ID
     uid: doc.id,

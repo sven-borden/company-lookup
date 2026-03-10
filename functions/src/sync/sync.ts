@@ -21,17 +21,22 @@ async function fetchCompaniesForPrefix(
   prefix: string,
   canton: string
 ): Promise<CompanyShort[]> {
+  logger.info(`Canton ${canton}: fetching prefix "${prefix}*"`);
   try {
-    return await client.searchCompanies({ name: `${prefix}*`, canton });
+    const results = await client.searchCompanies({ name: `${prefix}*`, canton });
+    logger.info(`Canton ${canton}: prefix "${prefix}*" → ${results.length} companies`);
+    return results;
   } catch (err) {
     const isTooBig =
       err instanceof Error && err.message.includes("RESULTLIST_TO_LARGE");
     if (isTooBig) {
+      logger.info(`Canton ${canton}: prefix "${prefix}*" too large — expanding to sub-prefixes`);
       const results: CompanyShort[] = [];
       for (const letter of "abcdefghijklmnopqrstuvwxyz") {
         const sub = await fetchCompaniesForPrefix(client, `${prefix}${letter}`, canton);
         results.push(...sub);
       }
+      logger.info(`Canton ${canton}: prefix "${prefix}*" expanded — ${results.length} companies total`);
       return results;
     }
     throw err;
@@ -101,7 +106,9 @@ export async function syncCompaniesForCanton(
 
   const seen = new Set<number>();
   const companies: CompanyShort[] = [];
+  logger.info(`Canton ${canton}: starting company discovery`);
   for (const letter of "abcdefghijklmnopqrstuvwxyz") {
+    const before = companies.length;
     const batch = await fetchCompaniesForPrefix(client, letter, canton);
     for (const c of batch) {
       if (!seen.has(c.ehraid)) {
@@ -109,8 +116,9 @@ export async function syncCompaniesForCanton(
         companies.push(c);
       }
     }
+    logger.info(`Canton ${canton}: letter "${letter}" done — +${companies.length - before} new (${companies.length} total)`);
   }
-  logger.info(`Canton ${canton}: found ${companies.length} companies`);
+  logger.info(`Canton ${canton}: discovery complete — ${companies.length} unique companies to sync`);
 
   let synced = 0;
   let batch = db.batch();
@@ -136,11 +144,15 @@ export async function syncCompaniesForCanton(
     batchCount++;
     synced++;
 
+    if (synced % 100 === 0) {
+      logger.info(`Canton ${canton}: fetched details for ${synced}/${companies.length} companies`);
+    }
+
     if (batchCount >= BATCH_SIZE) {
       await batch.commit();
       batch = db.batch();
       batchCount = 0;
-      logger.info(`Canton ${canton}: committed ${synced} companies so far`);
+      logger.info(`Canton ${canton}: committed batch — ${synced}/${companies.length} companies written`);
     }
   }
 

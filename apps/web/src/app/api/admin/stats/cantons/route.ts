@@ -1,12 +1,13 @@
+import type { QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase/admin";
 
 export async function GET() {
   try {
-    const stats: Record<string, any> = {};
+    const stats: Record<string, { totalCompanies: number; lastSyncedAt: unknown }> = {};
     const snapshot = await adminDb.collection("canton_stats").get();
-    
-    snapshot.forEach(doc => {
+
+    snapshot.forEach((doc: QueryDocumentSnapshot) => {
       const data = doc.data();
       stats[doc.id] = {
         totalCompanies: data.totalCompanies || 0,
