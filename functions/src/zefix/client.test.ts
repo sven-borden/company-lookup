@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, type MockInstance } from "vitest";
 import { ZefixClient, ZefixApiError } from "./client";
 import type { CompanyShort, CompanyFull, LegalForm } from "@swiss-biz-hunter/types";
 
@@ -62,7 +62,8 @@ function makeRawResponse(body: string, status: number): Response {
 }
 
 let client: ZefixClient;
-let fetchSpy: ReturnType<typeof vi.spyOn>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let fetchSpy: MockInstance<any>;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -191,7 +192,9 @@ describe("ZefixClient", () => {
 
     it("sends correct Basic Auth header", async () => {
       let capturedHeaders: HeadersInit | undefined;
-      fetchSpy.mockImplementation(async (_url, init) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      fetchSpy.mockImplementation(async (...args: any[]) => {
+        const init: RequestInit | undefined = args[1];
         capturedHeaders = init?.headers;
         return makeJsonResponse([]);
       });

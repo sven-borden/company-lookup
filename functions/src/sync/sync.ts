@@ -3,8 +3,9 @@ import { defineString } from "firebase-functions/params";
 import { getFirestore, WriteBatch } from "firebase-admin/firestore";
 import { initializeApp } from "firebase-admin/app";
 import { ZefixClient } from "../zefix/client";
-import { CompanyFull, CompanyShort, CANTONS, CANTON_SCHEDULE } from "@swiss-biz-hunter/types";
+import { CompanyFull, CompanyShort, CANTONS, CANTON_SCHEDULE, CantonalEnrichment } from "@swiss-biz-hunter/types";
 import { logger } from "firebase-functions/v2";
+import { VaudClient } from "../scrapers/vaud";
 
 initializeApp();
 
@@ -112,6 +113,15 @@ export async function syncCompaniesForCanton(
   canton: string
 ): Promise<number> {
   const db = getFirestore();
+  const vaudClient = canton === "VD" ? new VaudClient() : null;
+  if (vaudClient) {
+    try {
+      await vaudClient.init();
+      logger.info("Canton VD: VaudClient session initialized");
+    } catch (err) {
+      logger.warn(`Canton VD: VaudClient init failed, enrichment disabled: ${err}`);
+    }
+  }
 
   const seen = new Set<number>();
   const companies: CompanyShort[] = [];
@@ -145,10 +155,22 @@ export async function syncCompaniesForCanton(
     }
 
     const trimmed = trimCompanyForFirestore(full);
+
+    let cantonalEnrichment: CantonalEnrichment | undefined;
+    if (vaudClient && full.cantonalExcerptWeb) {
+      try {
+        cantonalEnrichment = (await vaudClient.enrichCompany(full)) ?? undefined;
+        await new Promise((r) => setTimeout(r, 200)); // rate limit
+      } catch (err) {
+        logger.warn(`Canton VD: enrichment failed for ${full.uid}: ${err}`);
+      }
+    }
+
     const docRef = db.collection("companies").doc(trimmed.uid);
     batch.set(docRef, {
       ...trimmed,
       syncedAt: new Date(),
+      ...(cantonalEnrichment ? { cantonalEnrichment } : {}),
     });
 
     batchCount++;
