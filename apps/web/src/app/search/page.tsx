@@ -3,8 +3,6 @@ import Link from "next/link";
 import { Shell } from "@/components/layout/Shell";
 import { Badge } from "@/components/ui/Badge";
 import { searchCompanies } from "@/lib/data/companies";
-import { MOCK_COMPANIES } from "@/lib/data/mock-companies";
-
 interface PageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
@@ -12,15 +10,8 @@ interface PageProps {
 export default async function SearchResultsPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const query = typeof params.q === "string" ? params.q : "";
-  
-  // Fetch real companies from Firestore
-  let companies = await searchCompanies(query);
 
-  // If no results are found in Firestore, we fallback to mock for demo purposes,
-  // or show an empty state. Let's show real data if available, 
-  // but for the sake of the demo, let's keep mock as fallback.
-  const isMock = companies.length === 0 && !query;
-  const displayCompanies = companies.length > 0 ? companies : (query ? [] : MOCK_COMPANIES);
+  const displayCompanies = await searchCompanies(query);
 
   return (
     <Shell>
