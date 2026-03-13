@@ -1,12 +1,12 @@
-# Company Lookup — Claude Code Instructions
+# SwissBizHunter — Claude Code Instructions
 
-Swiss company registry lookup app. Monorepo powered by Zefix PublicREST API.
+Swiss business acquisition intelligence platform. Monorepo powered by Zefix PublicREST API, scraping, and AI.
 
 ## Architecture
 
 - **Frontend**: `apps/web/` — Next.js 16 (App Router), Tailwind CSS 4, deployed to Vercel
 - **Backend**: Firebase (Firestore + Cloud Functions v2)
-- **Shared types**: `packages/types/` — `@company-lookup/types`
+- **Shared types**: `packages/types/` — `@swiss-biz-hunter/types`
 - **Functions**: `functions/src/` — scheduled Zefix sync, Zefix API client
 
 **Data flow**: `Zefix API → Firebase Function (scheduled sync) → Firestore → Next.js frontend`

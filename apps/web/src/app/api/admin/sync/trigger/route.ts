@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase/admin";
-import { CANTON_SCHEDULE, type CompanyFull } from "@company-lookup/types";
+import { CANTON_SCHEDULE, type CompanyFull } from "@swiss-biz-hunter/types";
 
 const BATCH_SIZE = 500;
 

@@ -4,7 +4,7 @@ import type {
   LegalForm,
   BfsCommunity,
   RegistryOfCommerce,
-} from "@company-lookup/types";
+} from "@swiss-biz-hunter/types";
 
 export async function getLegalForms(): Promise<LegalForm[]> {
   const snapshot = await adminDb.collection("legalForms").get();

@@ -1,19 +1,19 @@
-# Company Lookup
+# SwissBizHunter
 
-Personal Zefix replica with augmented data. Swiss company registry lookup powered by the Zefix PublicREST API.
+Swiss Business Intelligence & Acquisition platform. Powered by Zefix, augmented by scraping and AI.
 
 ## Architecture
 
 - **Frontend**: Next.js 16 (App Router) deployed to Vercel
 - **Backend**: Firebase (Firestore + Cloud Functions)
-- **Shared types**: `@company-lookup/types` package
+- **Shared types**: `@swiss-biz-hunter/types` package
 
 **Data flow**: `Zefix API -> Firebase Function (scheduled sync) -> Firestore -> Next.js frontend`
 
 ## Project Structure
 
 ```
-company-lookup/
+swiss-biz-hunter/
 ├── apps/web/          # Next.js 16 app
 ├── packages/types/    # Shared TypeScript types
 ├── functions/         # Firebase Cloud Functions

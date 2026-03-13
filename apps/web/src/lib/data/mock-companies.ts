@@ -1,4 +1,4 @@
-import { CompanyShort, CompanyFull, CompanyStatus } from "@company-lookup/types";
+import { CompanyShort, CompanyFull, CompanyStatus } from "@swiss-biz-hunter/types";
 
 export const MOCK_COMPANIES: CompanyShort[] = [
   {

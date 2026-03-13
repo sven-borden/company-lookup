@@ -1,6 +1,6 @@
 import type { Query, QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { adminDb } from "../firebase/admin";
-import { CompanyShort, CompanyFull } from "@company-lookup/types";
+import { CompanyShort, CompanyFull } from "@swiss-biz-hunter/types";
 
 export interface BrowseFilters {
   canton?: string;

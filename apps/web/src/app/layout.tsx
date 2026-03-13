@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Zefix Lookup",
-  description: "Swiss Company Registry Lookup",
+  title: "SwissBizHunter | Business Acquisition Intelligence",
+  description: "Swiss business lookup and acquisition intelligence platform.",
 };
 
 export default function RootLayout({

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { CANTONS } from "@company-lookup/types";
+import { CANTONS } from "@swiss-biz-hunter/types";
 
 // Hoisted mocks so factories can reference them
 const { mockCommit, mockSet, mockBatchFn, mockDocRef, mockDoc, mockCollection, mockDb } =

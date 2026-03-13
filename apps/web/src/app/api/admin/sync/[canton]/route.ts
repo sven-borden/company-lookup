@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase/admin";
-import type { CompanyFull } from "@company-lookup/types";
+import type { CompanyFull } from "@swiss-biz-hunter/types";
 
 const BATCH_SIZE = 500;
 const MAX_SOGC_PUB_ENTRIES = 100;

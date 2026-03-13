@@ -1,13 +1,16 @@
-# Company Lookup Branding Guidelines
+# SwissBizHunter Branding Guidelines
 
-Our goal is a "Swiss Modern" aesthetic—a minimalist, typography-first design that honors the heritage of Swiss graphic design (International Typographic Style) while feeling like a fast, contemporary SaaS product.
+SwissBizHunter is a professional intelligence and acquisition tool designed for Swiss business takeovers. It leverages Zefix data as a foundation, augmented by advanced scraping and AI-driven insights to identify and evaluate high-potential targets.
+
+Our goal is a "Swiss Modern" aesthetic—a minimalist, typography-first design that honors the heritage of Swiss graphic design (International Typographic Style) while feeling like a fast, contemporary intelligence platform.
 
 ## 1. Design Philosophy
 
-- **Functionalism First:** The data is the hero. Design serves the readability and scanability of company information.
+- **Functionalism First:** The data is the hero. Design serves the readability and scanability of business intelligence.
 - **The Grid:** Everything should align to a strict, consistent grid system. No "floating" elements.
-- **Asymmetry:** Use white space and alignment (left-aligned) to create visual interest rather than decorative elements.
+- **Asymmetry:** Use white space and alignment (left-aligned) to create visual interest.
 - **Objectivity:** No heavy shadows, gradients, or rounded corners (use tight radii like `4px` or `8px` at most).
+- **The Mark:** Our 'Data Architecture' logo represents the layers of intelligence: Zefix core data, external scraping, and AI analysis.
 
 ## 2. Typography
 

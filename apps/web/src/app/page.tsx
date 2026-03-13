@@ -24,11 +24,11 @@ export default function Home() {
           {/* Hero Section */}
           <section className="space-y-4 mb-16">
             <h1 className="text-4xl md:text-5xl font-extrabold tracking-tighter leading-tight italic uppercase">
-              Swiss Company <br /> Registry Lookup
+              Swiss Business <br /> Acquisition Intelligence
             </h1>
             <p className="text-zinc-500 dark:text-zinc-400 text-lg font-medium max-w-lg">
-              Access augmented commercial data for any business in Switzerland 
-              using official Zefix PublicREST records.
+              Identify and evaluate Swiss companies with augmented Zefix data, 
+              scraping intelligence, and AI-driven growth analysis.
             </p>
           </section>
 

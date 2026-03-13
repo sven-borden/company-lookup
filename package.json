@@ -1,5 +1,5 @@
 {
-  "name": "company-lookup",
+  "name": "swiss-biz-hunter",
   "private": true,
   "workspaces": [
     "apps/*",
@@ -10,7 +10,7 @@
     "dev": "npm run dev --workspace=apps/web",
     "build": "npm run build --workspace=apps/web",
     "lint": "npm run lint --workspace=apps/web",
-    "emulators": "firebase emulators:start --project=company-lookup",
+    "emulators": "firebase emulators:start --project=swiss-biz-hunter",
     "test": "npm run test --workspaces --if-present"
   }
 }

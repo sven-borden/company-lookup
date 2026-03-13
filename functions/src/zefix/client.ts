@@ -7,7 +7,7 @@ import {
   RegistryOfCommerce,
   RestApiErrorResponse,
   SogcPublicationAndCompanyShort,
-} from "@company-lookup/types";
+} from "@swiss-biz-hunter/types";
 
 export class ZefixApiError extends Error {
   constructor(

@@ -1,12 +1,12 @@
-# Company Lookup Project Context
+# SwissBizHunter Project Context
 
-This project is a Zefix replica for looking up Swiss company registry data, augmented with additional information. It uses a monorepo structure with a Next.js frontend and a Firebase backend.
+This project is a professional Swiss business intelligence tool for identifying and evaluating acquisition targets. It leverages Zefix data as a foundation, augmented with scraping and AI-powered insights.
 
 ## Architecture & Tech Stack
 
 - **Frontend**: Next.js 16 (App Router) with Tailwind CSS 4, deployed to Vercel.
 - **Backend**: Firebase (Firestore, Cloud Functions v2).
-- **Shared Package**: `@company-lookup/types` for TypeScript definitions.
+- **Shared Package**: `@swiss-biz-hunter/types` for TypeScript definitions.
 - **Data Source**: Swiss Federal Commercial Registry (Zefix) PublicREST API.
 
 ### Project Structure
@@ -48,6 +48,6 @@ Required variables (see `.env.example`):
 ### Development Conventions
 
 - **Monorepo**: Uses NPM workspaces. Add dependencies to specific workspaces using `-w apps/web`, etc.
-- **TypeScript**: Strictly typed using the shared `@company-lookup/types` package.
+- **TypeScript**: Strictly typed using the shared `@swiss-biz-hunter/types` package.
 - **Firebase Functions**: Uses v2 Cloud Functions (scheduler, params, etc.).
 - **Styling**: Tailwind CSS 4 is used for the frontend.

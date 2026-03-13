@@ -3,7 +3,7 @@ import { defineString } from "firebase-functions/params";
 import { getFirestore, WriteBatch } from "firebase-admin/firestore";
 import { initializeApp } from "firebase-admin/app";
 import { ZefixClient } from "../zefix/client";
-import { CompanyFull, CompanyShort, CANTONS, CANTON_SCHEDULE } from "@company-lookup/types";
+import { CompanyFull, CompanyShort, CANTONS, CANTON_SCHEDULE } from "@swiss-biz-hunter/types";
 import { logger } from "firebase-functions/v2";
 
 initializeApp();

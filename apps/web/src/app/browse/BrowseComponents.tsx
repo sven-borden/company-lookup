@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { CANTONS } from "@company-lookup/types";
+import { CANTONS } from "@swiss-biz-hunter/types";
 
 export function BrowseFilters() {
   const router = useRouter();

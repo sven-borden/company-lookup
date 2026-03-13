@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ZefixClient, ZefixApiError } from "./client";
-import type { CompanyShort, CompanyFull, LegalForm } from "@company-lookup/types";
+import type { CompanyShort, CompanyFull, LegalForm } from "@swiss-biz-hunter/types";
 
 const mockConfig = {
   baseUrl: "https://zefix.example.com",

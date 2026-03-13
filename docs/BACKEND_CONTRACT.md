@@ -90,7 +90,7 @@ Simple `getAll` helpers that fetch entire reference collections. No filters, no 
 | `getCommunities()` | `communities` | `Promise<BfsCommunity[]>` |
 | `getRegistries()`  | `registries`  | `Promise<RegistryOfCommerce[]>` |
 
-Types are defined in `@company-lookup/types`.
+Types are defined in `@swiss-biz-hunter/types`.
 
 ---
 
@@ -143,7 +143,7 @@ Record<string, {        // keyed by canton code, e.g. "ZH"
 
 ### `POST /api/admin/sync/trigger`
 
-Triggers a sync for the cantons scheduled for today's day of the week (based on `CANTON_SCHEDULE` from `@company-lookup/types`). No request body required.
+Triggers a sync for the cantons scheduled for today's day of the week (based on `CANTON_SCHEDULE` from `@swiss-biz-hunter/types`). No request body required.
 
 **Sync logic**
 

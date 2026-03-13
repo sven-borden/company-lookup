@@ -15,7 +15,7 @@ export function Shell({ children }: ShellProps) {
               +
             </div>
             <span className="font-bold tracking-tight uppercase text-sm group-hover:text-red-600 transition-colors">
-              Zefix Lookup
+              SwissBizHunter
             </span>
           </Link>
           <div className="flex items-center gap-6">
