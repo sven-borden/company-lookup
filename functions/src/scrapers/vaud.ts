@@ -98,14 +98,19 @@ export class VaudClient {
     return res.json() as Promise<T>;
   }
 
-  /** Look up the internal hrcentId for a given formatted UID (CHE-XXX.XXX.XXX). */
-  private async getHrcentId(uid: string): Promise<string | null> {
+  /**
+   * Look up the internal hrcentId by searching company name and matching the UID.
+   * The quick-search endpoint only accepts company names, not UIDs directly.
+   */
+  private async getHrcentId(name: string, uid: string): Promise<string | null> {
     const results = await this.post<VaudSearchResult[]>("/companies/quick-search", {
-      criteria: uid,
+      criteria: name,
       lang: "FR",
-      maxResultNumber: 1,
+      maxResultNumber: 10,
     });
-    return results[0]?.hrcentId ?? null;
+    // Match by UID to avoid false positives from similar company names
+    const match = results.find((r) => r.uid === uid);
+    return match?.hrcentId ?? null;
   }
 
   /** Fetch the full extract JSON for a company. */
@@ -143,9 +148,9 @@ export class VaudClient {
       return null;
     }
 
-    const hrcentId = await this.getHrcentId(uidOfs);
+    const hrcentId = await this.getHrcentId(company.name, uidOfs);
     if (!hrcentId) {
-      logger.warn(`VaudClient: hrcentId not found for ${uidOfs}`);
+      logger.warn(`VaudClient: hrcentId not found for ${company.name} (${uidOfs})`);
       return null;
     }
 
