@@ -1,20 +1,17 @@
-import type { QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
+import { db } from "@/lib/db";
+import { cantonStats } from "@/lib/db/schema";
 
 export async function GET() {
   try {
-    const stats: Record<string, { totalCompanies: number; lastSyncedAt: unknown }> = {};
-    const snapshot = await adminDb.collection("canton_stats").get();
-
-    snapshot.forEach((doc: QueryDocumentSnapshot) => {
-      const data = doc.data();
-      stats[doc.id] = {
-        totalCompanies: data.totalCompanies || 0,
-        lastSyncedAt: data.lastSyncedAt?.toDate?.() || data.lastSyncedAt,
+    const rows = await db.select().from(cantonStats);
+    const stats: Record<string, { totalCompanies: number; lastSyncedAt: Date | null }> = {};
+    for (const row of rows) {
+      stats[row.canton] = {
+        totalCompanies: row.totalCompanies ?? 0,
+        lastSyncedAt: row.lastSyncedAt ?? null,
       };
-    });
-
+    }
     return NextResponse.json(stats);
   } catch (error) {
     console.error("Failed to fetch canton stats:", error);

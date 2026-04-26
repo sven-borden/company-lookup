@@ -1,22 +1,13 @@
-import type { QueryDocumentSnapshot } from "firebase-admin/firestore";
-import { adminDb } from "../firebase/admin";
-import type {
-  LegalForm,
-  BfsCommunity,
-  RegistryOfCommerce,
-} from "@swiss-biz-hunter/types";
+import type { LegalForm, BfsCommunity, RegistryOfCommerce } from "@swiss-biz-hunter/types";
 
 export async function getLegalForms(): Promise<LegalForm[]> {
-  const snapshot = await adminDb.collection("legalForms").get();
-  return snapshot.docs.map((doc: QueryDocumentSnapshot) => doc.data() as LegalForm);
+  return [];
 }
 
 export async function getCommunities(): Promise<BfsCommunity[]> {
-  const snapshot = await adminDb.collection("communities").get();
-  return snapshot.docs.map((doc: QueryDocumentSnapshot) => doc.data() as BfsCommunity);
+  return [];
 }
 
 export async function getRegistries(): Promise<RegistryOfCommerce[]> {
-  const snapshot = await adminDb.collection("registries").get();
-  return snapshot.docs.map((doc: QueryDocumentSnapshot) => doc.data() as RegistryOfCommerce);
+  return [];
 }

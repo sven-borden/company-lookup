@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { getCompanyByUid } from "@/lib/data/companies";
 import { MOCK_COMPANY_FULL } from "@/lib/data/mock-companies";
-import { CompanyShort, CompanyStatus } from "@swiss-biz-hunter/types";
+import { CompanyShort, CompanyStatus, CompanyFull } from "@swiss-biz-hunter/types";
 
 interface PageProps {
   params: Promise<{ uid: string }>;
@@ -148,6 +148,62 @@ export default async function CompanyDetailPage({ params }: PageProps) {
                 </p>
               </div>
             </section>
+
+            {/* Cantonal Enrichment (Officers & Shareholders) */}
+            {(company.cantonalEnrichment || (company as any).enrichment) && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-12 pt-8 border-t border-zinc-100 dark:border-zinc-900">
+                  {((company.cantonalEnrichment?.officers || (company as any).enrichment?.officers) || []).length > 0 && (
+                    <section>
+                      <SectionTitle>Officers & Management</SectionTitle>
+                      <div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-800">
+                        {(company.cantonalEnrichment?.officers || (company as any).enrichment?.officers || []).map((officer: any, i: number) => (
+                          <div key={i} className="p-4 border-b border-zinc-100 dark:border-zinc-900 last:border-0">
+                            <p className="text-sm font-black uppercase tracking-tight">{officer.name}</p>
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              <span className="text-[10px] font-bold uppercase text-zinc-500">{officer.role}</span>
+                              {officer.signatureType && (
+                                <span className="text-[10px] font-medium text-zinc-400 italic">({officer.signatureType})</span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {((company.cantonalEnrichment?.shareholders || (company as any).enrichment?.shareholders) || []).length > 0 && (
+                    <section>
+                      <SectionTitle>Shareholders</SectionTitle>
+                      <div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-800">
+                        {(company.cantonalEnrichment?.shareholders || (company as any).enrichment?.shareholders || []).map((shareholder: any, i: number) => (
+                          <div key={i} className="p-4 border-b border-zinc-100 dark:border-zinc-900 last:border-0">
+                            <p className="text-sm font-black uppercase tracking-tight">{shareholder.name}</p>
+                            {shareholder.shares && (
+                              <p className="text-[10px] text-zinc-500 mt-1 leading-relaxed">{shareholder.shares}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </div>
+                
+                {(company.cantonalEnrichment?.source || (company as any).enrichment?.source) && (
+                  <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                    <span className="bg-zinc-100 dark:bg-zinc-900 px-2 py-0.5 text-zinc-600 dark:text-zinc-300">Verified Source</span>
+                    <a 
+                      href={company.cantonalEnrichment?.source || (company as any).enrichment?.source} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="hover:text-black dark:hover:text-white transition-colors underline decoration-zinc-200 underline-offset-4"
+                    >
+                      Cantonal Register (VD) ↗
+                    </a>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* General Info Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12">

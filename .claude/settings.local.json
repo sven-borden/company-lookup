@@ -16,7 +16,29 @@
       "Bash(cd \"C:\\\\Users\\\\glagl\\\\Documents\\\\GitHub\\\\company-lookup\" && npm run test --workspace=functions 2>&1)",
       "Bash(find \"C:\\\\Users\\\\glagl\\\\Documents\\\\GitHub\\\\company-lookup\" -name \"BACKEND_CONTRACT.md\" -o -name \"*backend*\" -o -name \"*contract*\" 2>/dev/null | head -20)",
       "Bash(firebase deploy:*)",
-      "Bash(cd apps/web && npx vercel deploy --prod 2>&1)"
+      "Bash(cd apps/web && npx vercel deploy --prod 2>&1)",
+      "WebSearch",
+      "WebFetch(domain:www.zefix.admin.ch)",
+      "WebFetch(domain:vaud.commercialregister.ch)",
+      "WebFetch(domain:www.rc2.vd.ch)",
+      "WebFetch(domain:www.hr-reg.ch)",
+      "WebFetch(domain:www.hregcc.ch)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:opendata.swiss)",
+      "WebFetch(domain:register.ld.admin.ch)",
+      "WebFetch(domain:www.zefix.ch)",
+      "WebFetch(domain:www.sogc.ch)",
+      "WebFetch(domain:renenyffenegger.ch)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:prestations.vd.ch)",
+      "Bash(curl -s \"https://prestations.vd.ch/pub/101266/main.025b9273d763dd23.js\" | grep -oP '.{0,100}extract.{0,100}' | head -30)",
+      "Bash(curl -s \"https://prestations.vd.ch/pub/101266/main.025b9273d763dd23.js\" | grep -oP '.{0,50}/api.{0,50}' | head -30)",
+      "Bash(curl -s \"https://prestations.vd.ch/pub/101266/main.025b9273d763dd23.js\" | grep -E -o \".{0,80}extract.{0,80}\" | head -40)",
+      "Bash(curl -s \"https://prestations.vd.ch/pub/101266/main.025b9273d763dd23.js\" | grep -oP '\\(?<=\"\\)[^\"]{5,80}\\(?=\"\\)' | grep -iE '\\(api|company|person|firm|officer|extract|uid|CHE\\)' | grep -v 'function\\\\|class\\\\|return\\\\|const\\\\|this\\\\.' | sort -u | head -50)",
+      "Bash(curl -s \"https://prestations.vd.ch/pub/101266/main.025b9273d763dd23.js\" | tr '{' '\\\\n' | grep -i 'hrcExcerpt\\\\|adms\\\\|associes\\\\|associé\\\\|gérant' | head -20)",
+      "Bash(npm run:*)"
     ]
   }
 }

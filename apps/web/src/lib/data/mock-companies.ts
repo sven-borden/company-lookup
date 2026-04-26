@@ -97,7 +97,7 @@ export const MOCK_COMPANY_FULL: CompanyFull = {
     city: "Zürich",
     swissZipCode: "8005",
   },
-  canton: "ZH",
+  canton: "VD",
   capitalNominal: "20000.00",
   capitalCurrency: "CHF",
   headOffices: [],
@@ -109,4 +109,16 @@ export const MOCK_COMPANY_FULL: CompanyFull = {
   oldNames: [],
   cantonalExcerptWeb: "https://zh.chregister.ch",
   zefixDetailWeb: { de: "https://www.zefix.ch" },
+  cantonalEnrichment: {
+    officers: [
+      { name: "Huang Jen-Hsun", role: "adm. président", signatureType: "signature individuelle" },
+      { name: "Kress Colette", role: "gérant", signatureType: "signature collective à 2" },
+      { name: "PricewaterhouseCoopers AG", role: "organe de révision" },
+    ],
+    shareholders: [
+      { name: "NVIDIA International Holdings B.V.", shares: "200 parts de CHF 100" }
+    ],
+    source: "https://vd.chregister.ch/detail/CHE-123.456.789",
+    enrichedAt: "2024-03-20T10:00:00Z",
+  }
 };

@@ -1,25 +1,18 @@
-import type { QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
+import { desc } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { syncLogs } from "@/lib/db/schema";
 
 export async function GET() {
   try {
-    const snapshot = await adminDb
-      .collection("cron_logs")
-      .orderBy("startTime", "desc")
-      .limit(20)
-      .get();
-
-    const logs = snapshot.docs.map((doc: QueryDocumentSnapshot) => ({
-      id: doc.id,
-      ...doc.data(),
-      startTime: doc.data().startTime?.toDate?.() || doc.data().startTime,
-      endTime: doc.data().endTime?.toDate?.() || doc.data().endTime,
-    }));
-
+    const logs = await db
+      .select()
+      .from(syncLogs)
+      .orderBy(desc(syncLogs.startTime))
+      .limit(20);
     return NextResponse.json(logs);
   } catch (error) {
-    console.error("Failed to fetch cron logs:", error);
+    console.error("Failed to fetch sync logs:", error);
     return NextResponse.json({ error: "Failed to fetch logs" }, { status: 500 });
   }
 }

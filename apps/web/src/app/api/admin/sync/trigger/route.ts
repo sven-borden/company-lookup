@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
+import { eq, sql } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { companies, companyAddresses, cantonStats, syncLogs } from "@/lib/db/schema";
 import { CANTON_SCHEDULE, type CompanyFull } from "@swiss-biz-hunter/types";
 
-const BATCH_SIZE = 500;
+const UPSERT_BATCH_SIZE = 100;
+const MAX_SOGC_PUB = 100;
 
 function makeAuthHeader(): string {
   const username = process.env.ZEFIX_USERNAME ?? "";
@@ -52,25 +55,66 @@ async function fetchCompaniesForPrefix(
   }
 }
 
-async function syncCompaniesForCanton(canton: string): Promise<number> {
-  console.log(`[sync] Canton ${canton}: starting company discovery`);
+function companyToRow(full: CompanyFull, canton: string) {
+  const sogcPub = full.sogcPub
+    ? [...full.sogcPub].sort((a, b) => b.sogcDate.localeCompare(a.sogcDate)).slice(0, MAX_SOGC_PUB)
+    : null;
+
+  return {
+    uid: full.uid,
+    ehraid: full.ehraid ?? null,
+    chid: full.chid ?? null,
+    name: full.name,
+    status: full.status,
+    canton: full.canton ?? canton,
+    legalSeat: full.legalSeat ?? null,
+    legalSeatId: full.legalSeatId ?? null,
+    legalFormId: full.legalForm?.id ?? null,
+    legalFormUid: full.legalForm?.uid ?? null,
+    legalFormNameDe: full.legalForm?.name?.de ?? null,
+    legalFormNameFr: full.legalForm?.name?.fr ?? null,
+    legalFormNameIt: full.legalForm?.name?.it ?? null,
+    legalFormNameEn: full.legalForm?.name?.en ?? null,
+    legalFormShortDe: full.legalForm?.shortName?.de ?? null,
+    purpose: full.purpose ?? null,
+    capitalNominal: full.capitalNominal ? String(full.capitalNominal) : null,
+    capitalCurrency: full.capitalCurrency ?? null,
+    sogcDate: full.sogcDate ?? null,
+    deletionDate: full.deletionDate ?? null,
+    registryOfCommerceId: full.registryOfCommerceId ?? null,
+    cantonalExcerptWeb: full.cantonalExcerptWeb ?? null,
+    zefixDetailWeb: full.zefixDetailWeb ?? null,
+    sogcPub: sogcPub as any,
+    oldNames: full.oldNames ?? null,
+    translations: full.translation ?? null,
+    headOffices: full.headOffices ?? null,
+    furtherHeadOffices: full.furtherHeadOffices ?? null,
+    branchOffices: full.branchOffices ?? null,
+    hasTakenOver: full.hasTakenOver ?? null,
+    wasTakenOverBy: full.wasTakenOverBy ?? null,
+    auditCompanies: full.auditCompanies ?? null,
+    syncedAt: new Date(),
+  };
+}
+
+async function syncCanton(canton: string): Promise<number> {
+  console.log(`[sync] Canton ${canton}: starting discovery`);
   const seen = new Set<number>();
-  const companies: Array<{ ehraid: number }> = [];
+  const discovered: Array<{ ehraid: number }> = [];
+
   for (const letter of "abcdefghijklmnopqrstuvwxyz") {
-    const before = companies.length;
     const batch = await fetchCompaniesForPrefix(letter, canton.toUpperCase());
     for (const c of batch) {
-      if (!seen.has(c.ehraid)) { seen.add(c.ehraid); companies.push(c); }
+      if (!seen.has(c.ehraid)) { seen.add(c.ehraid); discovered.push(c); }
     }
-    console.log(`[sync] Canton ${canton}: letter "${letter}" done — +${companies.length - before} new (${companies.length} total)`);
   }
-  console.log(`[sync] Canton ${canton}: discovery complete — ${companies.length} unique companies`);
+  console.log(`[sync] Canton ${canton}: ${discovered.length} companies`);
 
+  const rows: ReturnType<typeof companyToRow>[] = [];
+  const addressRows: Array<{ companyUid: string; [key: string]: unknown }> = [];
   let synced = 0;
-  let batch = adminDb.batch();
-  let batchCount = 0;
 
-  for (const company of companies) {
+  for (const company of discovered) {
     let full: CompanyFull;
     try {
       full = await zefixGet<CompanyFull>(`/api/v1/company/ehraid/${company.ehraid}`);
@@ -78,31 +122,67 @@ async function syncCompaniesForCanton(canton: string): Promise<number> {
       continue;
     }
 
-    const docRef = adminDb.collection("companies").doc(full.uid);
-    batch.set(docRef, {
-      ...full,
-      nameLower: (full.name as string).toLowerCase(),
-      syncedAt: new Date(),
-    });
+    rows.push(companyToRow(full, canton));
 
-    batchCount++;
+    if (full.address) {
+      addressRows.push({
+        companyUid: full.uid,
+        organisation: full.address.organisation ?? null,
+        careOf: full.address.careOf ?? null,
+        street: full.address.street ?? null,
+        houseNumber: full.address.houseNumber ?? null,
+        addon: full.address.addon ?? null,
+        poBox: full.address.poBox ?? null,
+        city: full.address.city ?? null,
+        swissZipCode: full.address.swissZipCode ?? null,
+      });
+    }
+
     synced++;
 
-    if (synced % 100 === 0) {
-      console.log(`[sync] Canton ${canton}: fetched details for ${synced}/${companies.length} companies`);
-    }
-
-    if (batchCount >= BATCH_SIZE) {
-      await batch.commit();
-      batch = adminDb.batch();
-      batchCount = 0;
-      console.log(`[sync] Canton ${canton}: committed batch — ${synced}/${companies.length} written`);
+    if (rows.length >= UPSERT_BATCH_SIZE) {
+      await db.insert(companies).values(rows).onConflictDoUpdate({
+        target: companies.uid,
+        set: { name: sql`excluded.name`, status: sql`excluded.status`, syncedAt: sql`NOW()` },
+      });
+      if (addressRows.length > 0) {
+        await db.insert(companyAddresses).values(addressRows as any).onConflictDoUpdate({
+          target: companyAddresses.companyUid,
+          set: { city: sql`excluded.city`, street: sql`excluded.street` },
+        });
+      }
+      rows.length = 0;
+      addressRows.length = 0;
+      console.log(`[sync] Canton ${canton}: committed ${synced}/${discovered.length}`);
     }
   }
 
-  if (batchCount > 0) {
-    await batch.commit();
+  if (rows.length > 0) {
+    await db.insert(companies).values(rows).onConflictDoUpdate({
+      target: companies.uid,
+      set: { name: sql`excluded.name`, status: sql`excluded.status`, syncedAt: sql`NOW()` },
+    });
+    if (addressRows.length > 0) {
+      await db.insert(companyAddresses).values(addressRows as any).onConflictDoUpdate({
+        target: companyAddresses.companyUid,
+        set: { city: sql`excluded.city`, street: sql`excluded.street` },
+      });
+    }
   }
+
+  const [statsRow] = await db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(companies)
+    .where(eq(companies.canton, canton.toUpperCase()));
+
+  await db.insert(cantonStats).values({
+    canton: canton.toUpperCase(),
+    totalCompanies: Number(statsRow.count),
+    lastSyncedAt: new Date(),
+  }).onConflictDoUpdate({
+    target: cantonStats.canton,
+    set: { totalCompanies: Number(statsRow.count), lastSyncedAt: new Date() },
+  });
 
   return synced;
 }
@@ -112,13 +192,12 @@ export async function POST(_req: NextRequest) {
   const dayOfWeek = startTime.getDay();
   const cantonsToSync = CANTON_SCHEDULE[dayOfWeek] || [];
 
-  const logRef = adminDb.collection("cron_logs").doc();
-  await logRef.set({
-    functionName: "manualSync",
+  const [logRow] = await db.insert(syncLogs).values({
+    functionName: "trigger-sync",
     startTime,
     status: "running",
     cantons: cantonsToSync,
-  });
+  }).returning({ id: syncLogs.id });
 
   try {
     let totalSynced = 0;
@@ -126,7 +205,7 @@ export async function POST(_req: NextRequest) {
 
     for (const canton of cantonsToSync) {
       try {
-        const count = await syncCompaniesForCanton(canton);
+        const count = await syncCanton(canton);
         totalSynced += count;
         results[canton] = count;
       } catch (err) {
@@ -135,21 +214,16 @@ export async function POST(_req: NextRequest) {
       }
     }
 
-    await logRef.update({
-      endTime: new Date(),
-      status: "success",
-      totalSynced,
-      results,
-    });
+    await db.update(syncLogs)
+      .set({ endTime: new Date(), status: "success", totalSynced, results })
+      .where(eq(syncLogs.id, logRow.id));
 
     return NextResponse.json({ status: "success", totalSynced, results });
   } catch (error) {
-    console.error("Manual sync failed:", error);
-    await logRef.update({
-      endTime: new Date(),
-      status: "failed",
-      error: String(error),
-    });
+    console.error("Trigger sync failed:", error);
+    await db.update(syncLogs)
+      .set({ endTime: new Date(), status: "failed", error: String(error) })
+      .where(eq(syncLogs.id, logRow.id));
     return NextResponse.json({ error: "Sync failed" }, { status: 500 });
   }
 }

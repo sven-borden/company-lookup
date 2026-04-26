@@ -1,3 +1,5 @@
+import { CantonalEnrichment } from "./enriched";
+
 // Zefix PublicREST API types
 // Based on https://www.zefix.admin.ch/ZefixPublicREST/v3/api-docs
 
@@ -134,6 +136,7 @@ export interface CompanyFull extends CompanyShort {
   oldNames: CompanyOldName[];
   cantonalExcerptWeb: string;
   zefixDetailWeb: DFIEString;
+  cantonalEnrichment?: CantonalEnrichment;
 }
 
 export interface SogcPublicationAndCompanyShort {

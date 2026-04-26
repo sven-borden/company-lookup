@@ -3,14 +3,13 @@
   "private": true,
   "workspaces": [
     "apps/*",
-    "packages/*",
-    "functions"
+    "packages/*"
   ],
   "scripts": {
     "dev": "npm run dev --workspace=apps/web",
     "build": "npm run build --workspace=apps/web",
+    "start": "npm run start --workspace=apps/web",
     "lint": "npm run lint --workspace=apps/web",
-    "emulators": "firebase emulators:start --project=swiss-biz-hunter",
     "test": "npm run test --workspaces --if-present"
   }
 }
