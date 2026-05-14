@@ -84,8 +84,7 @@ function companyToRow(full: CompanyFull, canton: string) {
     registryOfCommerceId: full.registryOfCommerceId ?? null,
     cantonalExcerptWeb: full.cantonalExcerptWeb ?? null,
     zefixDetailWeb: full.zefixDetailWeb ?? null,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    sogcPub: sogcPub as any,
+    sogcPub: sogcPub,
     oldNames: full.oldNames ?? null,
     translations: full.translation ?? null,
     headOffices: full.headOffices ?? null,
@@ -112,7 +111,7 @@ async function syncCanton(canton: string): Promise<number> {
   console.log(`[sync] Canton ${canton}: ${discovered.length} companies`);
 
   const rows: ReturnType<typeof companyToRow>[] = [];
-  const addressRows: Array<{ companyUid: string; [key: string]: unknown }> = [];
+  const addressRows: Array<typeof companyAddresses.$inferInsert> = [];
   let synced = 0;
 
   for (const company of discovered) {
@@ -147,8 +146,7 @@ async function syncCanton(canton: string): Promise<number> {
         set: { name: sql`excluded.name`, status: sql`excluded.status`, syncedAt: sql`NOW()` },
       });
       if (addressRows.length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await db.insert(companyAddresses).values(addressRows as any).onConflictDoUpdate({
+        await db.insert(companyAddresses).values(addressRows).onConflictDoUpdate({
           target: companyAddresses.companyUid,
           set: { city: sql`excluded.city`, street: sql`excluded.street` },
         });
@@ -165,8 +163,7 @@ async function syncCanton(canton: string): Promise<number> {
       set: { name: sql`excluded.name`, status: sql`excluded.status`, syncedAt: sql`NOW()` },
     });
     if (addressRows.length > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await db.insert(companyAddresses).values(addressRows as any).onConflictDoUpdate({
+      await db.insert(companyAddresses).values(addressRows).onConflictDoUpdate({
         target: companyAddresses.companyUid,
         set: { city: sql`excluded.city`, street: sql`excluded.street` },
       });

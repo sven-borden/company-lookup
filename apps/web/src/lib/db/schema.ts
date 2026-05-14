@@ -2,6 +2,9 @@ import {
   pgTable, text, integer, numeric, timestamp, jsonb, serial, index,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
+import {
+  SogcPublication, CompanyOldName, CompanyShort, DFIEString,
+} from "@swiss-biz-hunter/types";
 
 export const companies = pgTable("companies", {
   uid: text("uid").primaryKey(),
@@ -26,16 +29,16 @@ export const companies = pgTable("companies", {
   deletionDate: text("deletion_date"),
   registryOfCommerceId: integer("registry_of_commerce_id"),
   cantonalExcerptWeb: text("cantonal_excerpt_web"),
-  zefixDetailWeb: jsonb("zefix_detail_web"),
-  sogcPub: jsonb("sogc_pub"),
-  oldNames: jsonb("old_names"),
-  translations: jsonb("translations"),
-  headOffices: jsonb("head_offices"),
-  furtherHeadOffices: jsonb("further_head_offices"),
-  branchOffices: jsonb("branch_offices"),
-  hasTakenOver: jsonb("has_taken_over"),
-  wasTakenOverBy: jsonb("was_taken_over_by"),
-  auditCompanies: jsonb("audit_companies"),
+  zefixDetailWeb: jsonb("zefix_detail_web").$type<DFIEString>(),
+  sogcPub: jsonb("sogc_pub").$type<SogcPublication[]>(),
+  oldNames: jsonb("old_names").$type<CompanyOldName[]>(),
+  translations: jsonb("translations").$type<string[]>(),
+  headOffices: jsonb("head_offices").$type<CompanyShort[]>(),
+  furtherHeadOffices: jsonb("further_head_offices").$type<CompanyShort[]>(),
+  branchOffices: jsonb("branch_offices").$type<CompanyShort[]>(),
+  hasTakenOver: jsonb("has_taken_over").$type<CompanyShort[]>(),
+  wasTakenOverBy: jsonb("was_taken_over_by").$type<CompanyShort[]>(),
+  auditCompanies: jsonb("audit_companies").$type<CompanyShort[]>(),
   syncedAt: timestamp("synced_at", { withTimezone: true }).defaultNow(),
 }, (t) => [
   index("idx_companies_canton").on(t.canton),

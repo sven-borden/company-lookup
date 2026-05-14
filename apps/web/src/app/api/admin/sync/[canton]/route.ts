@@ -111,8 +111,7 @@ function companyToRow(full: CompanyFull, canton: string) {
     registryOfCommerceId: full.registryOfCommerceId ?? null,
     cantonalExcerptWeb: full.cantonalExcerptWeb ?? null,
     zefixDetailWeb: full.zefixDetailWeb ?? null,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    sogcPub: sogcPub as any,
+    sogcPub: sogcPub,
     oldNames: full.oldNames ?? null,
     translations: full.translation ?? null,
     headOffices: full.headOffices ?? null,
