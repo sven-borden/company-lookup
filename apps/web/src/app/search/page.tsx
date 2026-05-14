@@ -22,7 +22,7 @@ export default async function SearchResultsPage({ searchParams }: PageProps) {
               Search Results
             </h1>
             {query && (
-              <Badge variant="accent">"{query}"</Badge>
+              <Badge variant="accent">&quot;{query}&quot;</Badge>
             )}
           </div>
           <p className="text-zinc-500 font-medium">
@@ -56,7 +56,7 @@ export default async function SearchResultsPage({ searchParams }: PageProps) {
                       {company.status}
                     </Badge>
                     <span className="text-zinc-300 dark:text-zinc-700 hidden md:block">
-                      →
+                      &rarr;
                     </span>
                   </div>
                 </div>
@@ -66,7 +66,7 @@ export default async function SearchResultsPage({ searchParams }: PageProps) {
         ) : (
           <div className="py-24 text-center border-2 border-dashed border-zinc-100 dark:border-zinc-900">
             <p className="text-xl font-bold text-zinc-400 uppercase tracking-widest italic">
-              No results found for "{query}"
+              No results found for &quot;{query}&quot;
             </p>
             <Link href="/" className="mt-4 inline-block text-xs font-bold uppercase tracking-widest text-red-600 hover:underline">
               Try another search
