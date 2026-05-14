@@ -103,7 +103,7 @@ describe("getCompanyByUid", () => {
     });
     const result = await getCompanyByUid("CHE-123.456.789");
     expect(result).not.toBeNull();
-    expect(result!.uid).toBe("CHE-123.456.789");
-    expect((result as any).name).toBe("Test AG");
+    expect(result?.uid).toBe("CHE-123.456.789");
+    expect(result?.name).toBe("Test AG");
   });
 });
