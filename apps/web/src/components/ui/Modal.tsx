@@ -16,6 +16,12 @@ export function Modal({ isOpen, onClose, children, labelledBy }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
 
+  // Keep latest onClose without re-running the trap effect on every parent render
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -28,7 +34,7 @@ export function Modal({ isOpen, onClose, children, labelledBy }: ModalProps) {
 
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key !== "Tab" || !panel) return;
@@ -58,7 +64,7 @@ export function Modal({ isOpen, onClose, children, labelledBy }: ModalProps) {
       // Restore focus to the trigger
       previouslyFocused.current?.focus();
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
