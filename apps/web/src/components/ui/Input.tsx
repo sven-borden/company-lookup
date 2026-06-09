@@ -10,7 +10,7 @@ export function Input({
   ...props
 }: InputProps) {
   const baseStyles =
-    "w-full bg-transparent outline-none transition-all duration-300 placeholder:text-zinc-300 dark:placeholder:text-zinc-700";
+    "w-full bg-transparent outline-none transition-all duration-300 placeholder:text-zinc-500 dark:placeholder:text-zinc-500";
   
   const variants = {
     default: "h-12 border border-zinc-200 dark:border-zinc-800 focus:border-red-600 dark:focus:border-red-500 px-4 rounded-none",

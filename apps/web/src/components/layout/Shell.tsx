@@ -8,8 +8,8 @@ interface ShellProps {
 
 export function Shell({ children }: ShellProps) {
   return (
-    <div className="min-h-screen bg-white dark:bg-black">
-      <header className="border-b border-zinc-100 dark:border-zinc-900 sticky top-0 bg-white/80 dark:bg-black/80 backdrop-blur-sm z-10">
+    <div className="min-h-screen bg-background">
+      <header className="border-b border-zinc-100 dark:border-zinc-900 sticky top-0 bg-background z-10">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 group">
             <Image 

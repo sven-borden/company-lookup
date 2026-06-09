@@ -75,10 +75,25 @@ export default function AdminDashboard() {
     fetchLogs();
     fetchStats();
     const interval = setInterval(() => {
+      // Skip polling while the tab is hidden to avoid wasted requests
+      if (document.hidden) return;
       fetchLogs();
       fetchStats();
     }, 15000); // Refresh every 15s
-    return () => clearInterval(interval);
+
+    // Refresh immediately when the tab becomes visible again
+    const onVisible = () => {
+      if (!document.hidden) {
+        fetchLogs();
+        fetchStats();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   const handleOpenConfirm = (canton: string) => {
@@ -188,7 +203,7 @@ export default function AdminDashboard() {
             </CardHeader>
             <div className="overflow-x-auto max-h-[400px]">
               <table className="w-full text-left text-sm">
-                <thead className="sticky top-0 bg-white dark:bg-black z-10">
+                <thead className="sticky top-0 bg-background z-10">
                   <tr className="border-b border-zinc-100 dark:border-zinc-900 text-[10px] uppercase font-bold tracking-widest text-zinc-500">
                     <th className="px-4 py-3">Canton</th>
                     <th className="px-4 py-3 text-right">Records</th>
@@ -212,7 +227,7 @@ export default function AdminDashboard() {
                           variant="outline" 
                           onClick={() => handleOpenConfirm(canton)}
                           disabled={triggering[canton]}
-                          className="h-8 px-3 text-[10px]"
+                          className="h-9 px-3 text-[10px]"
                         >
                           {triggering[canton] ? "..." : "Sync"}
                         </Button>

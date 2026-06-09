@@ -48,7 +48,7 @@ export default async function BrowsePage({ searchParams }: PageProps) {
             <Link
               key={company.uid}
               href={`/company/${encodeURIComponent(company.uid)}`}
-              className="group block bg-white dark:bg-black p-6 hover:bg-zinc-50 dark:hover:bg-zinc-950 transition-colors"
+              className="group block bg-background p-6 hover:bg-zinc-50 dark:hover:bg-zinc-950 transition-colors"
             >
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="space-y-1">
@@ -58,7 +58,7 @@ export default async function BrowsePage({ searchParams }: PageProps) {
                     </h2>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="font-mono text-xs text-zinc-400">
+                    <span className="font-mono text-xs text-zinc-500 dark:text-zinc-400">
                       {company.uid}
                     </span>
                     <Badge variant="outline">{company.legalSeat}</Badge>
@@ -69,7 +69,7 @@ export default async function BrowsePage({ searchParams }: PageProps) {
                   <Badge variant={company.status === "ACTIVE" ? "active" : "cancelled"}>
                     {company.status}
                   </Badge>
-                  <span className="text-zinc-300 dark:text-zinc-700 hidden md:block group-hover:translate-x-1 transition-transform">
+                  <span aria-hidden="true" className="text-zinc-400 dark:text-zinc-600 hidden md:block group-hover:translate-x-1 transition-transform">
                     →
                   </span>
                 </div>
@@ -79,7 +79,7 @@ export default async function BrowsePage({ searchParams }: PageProps) {
         </div>
 
         <footer className="flex flex-col md:flex-row items-center justify-between gap-6 border-t border-zinc-100 dark:border-zinc-900 pt-8">
-          <div className="text-xs font-bold uppercase tracking-widest text-zinc-400">
+          <div className="text-xs font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
             Showing <span className="text-zinc-950 dark:text-zinc-50">{(page - 1) * pageSize + 1} - {Math.min(page * pageSize, totalItems)}</span> of <span className="text-zinc-950 dark:text-zinc-50">{totalItems}</span> companies
           </div>
           

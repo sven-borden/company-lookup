@@ -14,10 +14,10 @@ interface PageProps {
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 mb-4 flex items-center gap-2">
-      <span className="w-4 h-[1px] bg-zinc-200 dark:bg-zinc-800"></span>
+    <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-400 mb-4 flex items-center gap-2">
+      <span aria-hidden="true" className="w-4 h-[1px] bg-zinc-200 dark:bg-zinc-800"></span>
       {children}
-    </h3>
+    </h2>
   );
 }
 
@@ -25,7 +25,7 @@ function DataRow({ label, value, mono = false }: { label: string; value: React.R
   if (!value) return null;
   return (
     <div className="py-3 border-b border-zinc-50 dark:border-zinc-900 last:border-0">
-      <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1">{label}</p>
+      <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">{label}</p>
       <div className={`text-sm font-semibold text-zinc-900 dark:text-zinc-100 ${mono ? "font-mono" : ""}`}>
         {value}
       </div>
@@ -49,7 +49,7 @@ function CompanyLinkList({ title, companies }: { title: string; companies?: Comp
               <p className="text-xs font-black uppercase tracking-tight">{c.name}</p>
               <p className="text-[10px] font-mono opacity-60">{c.uid}</p>
             </div>
-            <span className="text-lg opacity-0 group-hover:opacity-100 transition-opacity">→</span>
+            <span aria-hidden="true" className="text-lg opacity-0 group-hover:opacity-100 transition-opacity">→</span>
           </Link>
         ))}
       </div>
@@ -85,9 +85,9 @@ export default async function CompanyDetailPage({ params }: PageProps) {
         <div className="mb-8">
           <Link 
             href="/search" 
-            className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 hover:text-black dark:hover:text-white transition-colors flex items-center gap-2"
+            className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400 hover:text-black dark:hover:text-white transition-colors flex items-center gap-2"
           >
-            <span className="text-xs">←</span> Back to Search
+            <span aria-hidden="true" className="text-xs">←</span> Back to Search
           </Link>
         </div>
 
@@ -107,13 +107,13 @@ export default async function CompanyDetailPage({ params }: PageProps) {
               </h1>
               <div className="flex flex-wrap items-center gap-6">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-1">UID Number</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400 mb-1">UID Number</p>
                   <code className="text-lg font-black bg-zinc-100 dark:bg-zinc-900 px-3 py-1">
                     {company.uid}
                   </code>
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-1">CH-ID</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400 mb-1">CH-ID</p>
                   <p className="text-lg font-mono font-bold">{company.chid}</p>
                 </div>
               </div>
@@ -125,9 +125,9 @@ export default async function CompanyDetailPage({ params }: PageProps) {
                   href={company.cantonalExcerptWeb} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="h-14 px-8 flex items-center justify-center bg-black text-white dark:bg-white dark:text-black font-black text-xs uppercase tracking-widest hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors shadow-xl"
+                  className="h-14 px-8 flex items-center justify-center bg-black text-white dark:bg-white dark:text-black font-black text-xs uppercase tracking-widest hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors"
                 >
-                  Commercial Register ↗
+                  Commercial Register <span aria-hidden="true">↗</span>
                 </a>
                )}
             </div>
@@ -142,7 +142,7 @@ export default async function CompanyDetailPage({ params }: PageProps) {
             <section>
               <SectionTitle>Company Purpose</SectionTitle>
               <div className="relative">
-                <span className="absolute -left-6 top-0 text-6xl font-black text-red-600 dark:text-red-500 select-none">&quot;</span>
+                <span aria-hidden="true" className="absolute -left-6 top-0 text-6xl font-black text-red-600 dark:text-red-500 select-none">&quot;</span>
                 <p className="text-2xl md:text-3xl font-bold leading-tight tracking-tight text-zinc-800 dark:text-zinc-200 italic">
                   {company.purpose || "The commercial purpose for this company has not been provided or is unavailable in the current registry extract."}
                 </p>
@@ -156,14 +156,14 @@ export default async function CompanyDetailPage({ params }: PageProps) {
                   {company.cantonalEnrichment.officers.length > 0 && (
                     <section>
                       <SectionTitle>Officers & Management</SectionTitle>
-                      <div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-800">
+                      <div className="bg-background border border-zinc-200 dark:border-zinc-800">
                         {company.cantonalEnrichment.officers.map((officer, i) => (
                           <div key={i} className="p-4 border-b border-zinc-100 dark:border-zinc-900 last:border-0">
                             <p className="text-sm font-black uppercase tracking-tight">{officer.name}</p>
                             <div className="flex flex-wrap gap-2 mt-1">
                               <span className="text-[10px] font-bold uppercase text-zinc-500">{officer.role}</span>
                               {officer.signatureType && (
-                                <span className="text-[10px] font-medium text-zinc-400 italic">({officer.signatureType})</span>
+                                <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 italic">({officer.signatureType})</span>
                               )}
                             </div>
                           </div>
@@ -175,7 +175,7 @@ export default async function CompanyDetailPage({ params }: PageProps) {
                   {company.cantonalEnrichment.shareholders.length > 0 && (
                     <section>
                       <SectionTitle>Shareholders</SectionTitle>
-                      <div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-800">
+                      <div className="bg-background border border-zinc-200 dark:border-zinc-800">
                         {company.cantonalEnrichment.shareholders.map((shareholder, i) => (
                           <div key={i} className="p-4 border-b border-zinc-100 dark:border-zinc-900 last:border-0">
                             <p className="text-sm font-black uppercase tracking-tight">{shareholder.name}</p>
@@ -190,7 +190,7 @@ export default async function CompanyDetailPage({ params }: PageProps) {
                 </div>
                 
                 {company.cantonalEnrichment.source && (
-                  <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                  <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
                     <span className="bg-zinc-100 dark:bg-zinc-900 px-2 py-0.5 text-zinc-600 dark:text-zinc-300">Verified Source</span>
                     <a 
                       href={company.cantonalEnrichment.source} 
@@ -209,7 +209,7 @@ export default async function CompanyDetailPage({ params }: PageProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
               <section>
                 <SectionTitle>Legal & Registration</SectionTitle>
-                <div className="bg-white dark:bg-black border border-zinc-100 dark:border-zinc-900 p-6">
+                <div className="bg-background border border-zinc-100 dark:border-zinc-900 p-6">
                   <DataRow label="Legal Form" value={company.legalForm?.name?.de} />
                   <DataRow label="Legal Seat" value={company.legalSeat} />
                   <DataRow label="Legal Seat ID" value={company.legalSeatId?.toString()} mono />
@@ -220,7 +220,7 @@ export default async function CompanyDetailPage({ params }: PageProps) {
 
               <section>
                 <SectionTitle>Capital Structure</SectionTitle>
-                <div className="bg-white dark:bg-black border border-zinc-100 dark:border-zinc-900 p-6">
+                <div className="bg-background border border-zinc-100 dark:border-zinc-900 p-6">
                   <DataRow 
                     label="Nominal Capital" 
                     value={company.capitalNominal ? `${Number(company.capitalNominal).toLocaleString('de-CH', { minimumFractionDigits: 2 })} ${company.capitalCurrency || 'CHF'}` : "Not specified"} 
@@ -251,15 +251,15 @@ export default async function CompanyDetailPage({ params }: PageProps) {
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="border-b-2 border-zinc-100 dark:border-zinc-900">
-                        <th className="py-4 text-[10px] font-black uppercase tracking-widest text-zinc-400">Previous Name</th>
-                        <th className="py-4 text-[10px] font-black uppercase tracking-widest text-zinc-400">Seq</th>
+                        <th className="py-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">Previous Name</th>
+                        <th className="py-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">Seq</th>
                       </tr>
                     </thead>
                     <tbody>
                       {company.oldNames.map((old, idx) => (
                         <tr key={idx} className="border-b border-zinc-50 dark:border-zinc-900 last:border-0">
                           <td className="py-4 font-bold text-sm uppercase italic">{old.name}</td>
-                          <td className="py-4 font-mono text-xs text-zinc-400">{old.sequenceNr}</td>
+                          <td className="py-4 font-mono text-xs text-zinc-500 dark:text-zinc-400">{old.sequenceNr}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -289,11 +289,11 @@ export default async function CompanyDetailPage({ params }: PageProps) {
             {/* Address Card */}
             <section>
               <SectionTitle>Contact Address</SectionTitle>
-              <Card className="rounded-none border-2 border-zinc-950 dark:border-zinc-50 overflow-hidden shadow-2xl">
-                <div className="h-2 bg-black dark:bg-white w-full"></div>
+              <Card className="rounded-none border-2 border-zinc-950 dark:border-zinc-50 overflow-hidden">
+                <div aria-hidden="true" className="h-2 bg-black dark:bg-white w-full"></div>
                 <CardContent className="p-8 space-y-6">
                   <div className="space-y-2">
-                    <p className="text-xs font-black uppercase tracking-widest text-zinc-400">Mailing Address</p>
+                    <p className="text-xs font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">Mailing Address</p>
                     <div className="text-lg font-bold uppercase leading-tight italic">
                       {company.address ? (
                         <>
@@ -305,12 +305,12 @@ export default async function CompanyDetailPage({ params }: PageProps) {
                           <p>{company.address.swissZipCode} {company.address.city}</p>
                         </>
                       ) : (
-                        <p className="text-zinc-400">No address on file</p>
+                        <p className="text-zinc-500 dark:text-zinc-400">No address on file</p>
                       )}
                     </div>
                   </div>
                   <div className="pt-6 border-t border-zinc-100 dark:border-zinc-900">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-2">Location Context</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400 mb-2">Location Context</p>
                     <p className="text-sm font-black uppercase tracking-tight">
                       {company.legalSeat}, Canton {company.canton || "N/A"}
                     </p>
@@ -323,7 +323,7 @@ export default async function CompanyDetailPage({ params }: PageProps) {
             <section>
               <div className="flex items-center justify-between mb-4">
                 <SectionTitle>Registry Mutations</SectionTitle>
-                <span className="text-[10px] font-mono text-zinc-400">{sortedSogc.length} Entries</span>
+                <span className="text-[10px] font-mono text-zinc-500 dark:text-zinc-400">{sortedSogc.length} Entries</span>
               </div>
               <div className="space-y-4 max-h-[800px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-zinc-200 dark:scrollbar-thumb-zinc-800">
                 {sortedSogc.length > 0 ? (
@@ -331,7 +331,7 @@ export default async function CompanyDetailPage({ params }: PageProps) {
                     <div key={idx} className="p-4 border border-zinc-100 dark:border-zinc-900 bg-zinc-50/50 dark:bg-zinc-900/20 group hover:border-black dark:hover:border-white transition-colors">
                       <div className="flex items-center justify-between mb-2">
                         <time className="text-[10px] font-black font-mono uppercase text-zinc-500">{pub.sogcDate}</time>
-                        <span className="text-[10px] font-bold text-zinc-300 dark:text-zinc-700">#{pub.sogcId}</span>
+                        <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-500">#{pub.sogcId}</span>
                       </div>
                       <p className="text-xs font-bold leading-relaxed uppercase tracking-tight group-hover:text-red-600 dark:group-hover:text-red-500 transition-colors">
                         {pub.message}
@@ -339,7 +339,7 @@ export default async function CompanyDetailPage({ params }: PageProps) {
                       {pub.mutationTypes && pub.mutationTypes.length > 0 && (
                         <div className="mt-3 flex flex-wrap gap-1">
                           {pub.mutationTypes.map((m) => (
-                            <span key={m.id} className="text-[8px] font-black uppercase px-1.5 py-0.5 bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+                            <span key={m.id} className="text-[10px] font-black uppercase px-1.5 py-0.5 bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
                               {m.key}
                             </span>
                           ))}
@@ -349,7 +349,7 @@ export default async function CompanyDetailPage({ params }: PageProps) {
                   ))
                 ) : (
                   <div className="p-8 border-2 border-dashed border-zinc-100 dark:border-zinc-900 text-center">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300">No public records</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">No public records</p>
                   </div>
                 )}
               </div>

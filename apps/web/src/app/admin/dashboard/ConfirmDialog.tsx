@@ -26,10 +26,10 @@ export function ConfirmDialog({
   isLoading = false,
 }: ConfirmDialogProps) {
   return (
-    <Modal isOpen={isOpen} onClose={onClose}>
+    <Modal isOpen={isOpen} onClose={onClose} labelledBy="confirm-dialog-title">
       <div className="space-y-6 text-left">
         <header className="flex items-center gap-2">
-          <div className="h-4 w-4 bg-red-600 flex items-center justify-center text-white font-bold text-[10px] select-none">
+          <div className="h-4 w-4 bg-red-600 flex items-center justify-center text-white font-bold text-[10px] select-none" aria-hidden="true">
             +
           </div>
           <span className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">
@@ -38,7 +38,7 @@ export function ConfirmDialog({
         </header>
 
         <div className="space-y-2">
-          <h2 className="text-2xl font-black tracking-tighter uppercase italic italic">
+          <h2 id="confirm-dialog-title" className="text-2xl font-black tracking-tighter uppercase italic">
             {title}
           </h2>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed">
