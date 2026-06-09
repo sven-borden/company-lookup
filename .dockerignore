@@ -1,0 +1,51 @@
+# Keep the build context tiny: less to send to the daemon = faster builds
+# and no stale/secret files baked into layers.
+
+# dependencies (reinstalled inside the image)
+**/node_modules
+
+# build output (rebuilt inside the image)
+**/.next
+**/out
+**/dist
+**/build
+**/.turbo
+*.tsbuildinfo
+
+# secrets / env — never ship these into an image layer
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+*-firebase-adminsdk-*.json
+
+# version control & CI
+.git
+.github
+.gitignore
+
+# firebase local state
+.firebase
+firebase-debug.log
+firestore-debug.log
+
+# editor / OS cruft
+.vscode
+.idea
+.DS_Store
+*.log
+
+# docs & meta not needed at runtime
+docs
+README.md
+GEMINI.md
+CLAUDE.md
+.claude
+
+# tests & coverage
+coverage
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+vitest.config.ts
