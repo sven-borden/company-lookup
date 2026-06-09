@@ -9,7 +9,7 @@ export default async function Home() {
 
   return (
     <Shell>
-      <div className="flex min-h-[calc(100vh-64px)] flex-col items-center justify-center px-6 bg-white dark:bg-black">
+      <div className="flex min-h-[calc(100vh-64px)] flex-col items-center justify-center px-6 bg-background">
         <main className="w-full max-w-2xl text-left">
           {/* Hero Section */}
           <section className="space-y-4 mb-16">

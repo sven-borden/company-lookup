@@ -48,28 +48,36 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       {mounted &&
         createPortal(
-          <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none w-full max-w-sm">
+          <div
+            role="region"
+            aria-label="Notifications"
+            aria-live="polite"
+            className="fixed bottom-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none w-full max-w-sm"
+          >
             {toasts.map((t) => (
               <div
                 key={t.id}
+                role={t.type === "error" ? "alert" : "status"}
                 className={`
                   pointer-events-auto flex items-center gap-3 p-4 border animate-in slide-in-from-right-5 fade-in duration-300
-                  ${t.type === "success" ? "bg-white dark:bg-black border-emerald-500/20 text-emerald-600 dark:text-emerald-500" : ""}
-                  ${t.type === "error" ? "bg-white dark:bg-black border-red-500/20 text-red-600 dark:text-red-500" : ""}
-                  ${t.type === "info" ? "bg-white dark:bg-black border-zinc-200 dark:border-zinc-800 text-zinc-950 dark:text-zinc-50" : ""}
+                  ${t.type === "success" ? "bg-background border-emerald-500/20 text-emerald-600 dark:text-emerald-500" : ""}
+                  ${t.type === "error" ? "bg-background border-red-500/20 text-red-600 dark:text-red-500" : ""}
+                  ${t.type === "info" ? "bg-background border-zinc-200 dark:border-zinc-800 text-zinc-950 dark:text-zinc-50" : ""}
                 `}
               >
-                <div className={`h-2 w-2 shrink-0 ${
-                  t.type === "success" ? "bg-emerald-500" : 
-                  t.type === "error" ? "bg-red-600" : 
+                <div aria-hidden="true" className={`h-2 w-2 shrink-0 ${
+                  t.type === "success" ? "bg-emerald-500" :
+                  t.type === "error" ? "bg-red-600" :
                   "bg-zinc-400"
                 }`} />
                 <span className="text-xs font-bold uppercase tracking-widest leading-none">
                   {t.message}
                 </span>
-                <button 
+                <button
+                  type="button"
                   onClick={() => removeToast(t.id)}
-                  className="ml-auto text-[10px] font-black uppercase tracking-tighter opacity-50 hover:opacity-100"
+                  aria-label="Dismiss notification"
+                  className="ml-auto min-h-[44px] flex items-center text-[10px] font-black uppercase tracking-tighter opacity-50 hover:opacity-100"
                 >
                   Close
                 </button>

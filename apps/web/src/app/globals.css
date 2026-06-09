@@ -3,25 +3,33 @@
 @theme {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Expose design tokens as Tailwind color utilities (bg-background, text-foreground, border-border, text-accent...) */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-border: var(--border);
 }
 
 :root {
-  --background: #ffffff;
-  --foreground: #09090b; /* zinc-950 */
-  --muted: #71717a; /* zinc-500 */
-  --muted-foreground: #71717a;
-  --accent: #dc2626; /* red-600 */
-  --border: #e4e4e7; /* zinc-200 */
+  /* Neutrals tinted toward the brand red hue (~27deg) instead of pure #000/#fff */
+  --background: oklch(0.994 0.0015 27);
+  --foreground: oklch(0.18 0.006 27);
+  --muted: oklch(0.55 0.012 27); /* ~zinc-500, AA on background */
+  --muted-foreground: oklch(0.55 0.012 27);
+  --accent: oklch(0.58 0.215 27); /* red-600 */
+  --border: oklch(0.92 0.004 27); /* ~zinc-200 */
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #000000;
-    --foreground: #fafafa; /* zinc-50 */
-    --muted: #a1a1aa; /* zinc-400 */
-    --muted-foreground: #a1a1aa;
-    --accent: #ef4444; /* red-500 */
-    --border: #27272a; /* zinc-800 */
+    --background: oklch(0.16 0.005 27);
+    --foreground: oklch(0.97 0.003 27);
+    --muted: oklch(0.70 0.012 27); /* ~zinc-400, AA on dark background */
+    --muted-foreground: oklch(0.70 0.012 27);
+    --accent: oklch(0.66 0.21 27); /* red-500 */
+    --border: oklch(0.30 0.008 27); /* ~zinc-800 */
   }
 }
 
@@ -37,4 +45,23 @@ body {
   * {
     border-color: var(--border);
   }
+
+  /* Visible keyboard focus across all interactive elements */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+/* Screen-reader-only utility for visually hidden labels */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

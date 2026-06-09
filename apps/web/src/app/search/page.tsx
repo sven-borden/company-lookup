@@ -36,7 +36,7 @@ export default async function SearchResultsPage({ searchParams }: PageProps) {
               <Link
                 key={company.uid}
                 href={`/company/${encodeURIComponent(company.uid)}`}
-                className="group block bg-white dark:bg-black p-6 hover:bg-zinc-50 dark:hover:bg-zinc-950 transition-colors"
+                className="group block bg-background p-6 hover:bg-zinc-50 dark:hover:bg-zinc-950 transition-colors"
               >
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="space-y-1">
@@ -44,7 +44,7 @@ export default async function SearchResultsPage({ searchParams }: PageProps) {
                       {company.name}
                     </h2>
                     <div className="flex items-center gap-3">
-                      <span className="font-mono text-xs text-zinc-400">
+                      <span className="font-mono text-xs text-zinc-500 dark:text-zinc-400">
                         {company.uid}
                       </span>
                       <Badge variant="outline">{company.legalSeat}</Badge>
@@ -55,7 +55,7 @@ export default async function SearchResultsPage({ searchParams }: PageProps) {
                     <Badge variant={company.status === "ACTIVE" ? "active" : "cancelled"}>
                       {company.status}
                     </Badge>
-                    <span className="text-zinc-300 dark:text-zinc-700 hidden md:block">
+                    <span aria-hidden="true" className="text-zinc-400 dark:text-zinc-600 hidden md:block">
                       &rarr;
                     </span>
                   </div>
@@ -65,7 +65,7 @@ export default async function SearchResultsPage({ searchParams }: PageProps) {
           </div>
         ) : (
           <div className="py-24 text-center border-2 border-dashed border-zinc-100 dark:border-zinc-900">
-            <p className="text-xl font-bold text-zinc-400 uppercase tracking-widest italic">
+            <p className="text-xl font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest italic">
               No results found for &quot;{query}&quot;
             </p>
             <Link href="/" className="mt-4 inline-block text-xs font-bold uppercase tracking-widest text-red-600 hover:underline">
