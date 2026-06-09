@@ -9,16 +9,19 @@ export const CANTONS = [
   "TI", "UR", "VD", "VS", "ZG", "ZH",
 ];
 
-// Schedule mapping (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
-// Balanced roughly by number of companies/economic activity
+// Schedule mapping (0 = Sunday, 1 = Monday, ..., 6 = Saturday).
+// Balanced via greedy LPT (longest-processing-time) over per-canton company
+// counts so each day carries ~equal load (~100k). ZH is the single largest
+// canton (~115k) and a canton syncs atomically, so it owns a day alone.
+// Re-tune from real cantonStats.totalCompanies after a full clean sync.
 export const CANTON_SCHEDULE: Record<number, string[]> = {
-  0: ["TG", "SO", "GR", "NE", "SH", "AR", "JU", "GL", "NW", "OW", "UR", "AI"],
-  1: ["ZH"],
-  2: ["BE", "SZ"],
-  3: ["VD", "TI"],
-  4: ["GE", "SG"],
-  5: ["AG", "LU", "BS"],
-  6: ["ZG", "VS", "BL", "FR"],
+  0: ["ZH"],
+  1: ["BE", "SZ", "JU", "AR", "GL"],
+  2: ["VD", "TG", "GR", "AI"],
+  3: ["GE", "FR", "BL", "SH"],
+  4: ["AG", "LU", "NE", "NW"],
+  5: ["SG", "VS", "SO", "OW"],
+  6: ["ZG", "TI", "BS", "UR"],
 };
 
 export enum CompanyStatus {
