@@ -52,8 +52,7 @@ RUN npm run build
 ##############################################
 FROM base AS runner
 ENV NODE_ENV=production \
-    PORT=3000 \
-    HOSTNAME=0.0.0.0
+    PORT=3000
 
 # Run as a non-root user.
 RUN addgroup --system --gid 1001 nodejs \
@@ -68,4 +67,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
 USER nextjs
 EXPOSE 3000
 
-CMD ["node", "apps/web/server.js"]
+# HOSTNAME is set in the command, not via ENV: the container runtime injects its
+# own HOSTNAME (the container's name) and that value wins over an image-level ENV.
+# Next's standalone server binds whatever HOSTNAME says, so it would listen only on
+# the container IP — reachable through the proxy, but not over loopback, which is
+# where the health check probes.
+CMD ["sh", "-c", "HOSTNAME=0.0.0.0 exec node apps/web/server.js"]
