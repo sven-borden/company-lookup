@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { companies, companyAddresses, cantonStats } from "@/lib/db/schema";
 import { CANTON } from "@swiss-biz-hunter/types";
@@ -121,8 +121,48 @@ function companyToRow(full: CompanyFull) {
   };
 }
 
+type CompanyRow = ReturnType<typeof companyToRow>;
+
+/**
+ * Collapse rows that share a uid or an ehraid, keeping the last occurrence.
+ * A single `INSERT ... ON CONFLICT DO UPDATE` cannot touch the same row twice
+ * ("command cannot affect row a second time"), and duplicate ehraids trip the
+ * unique constraint outright — either kills the whole batch.
+ */
+export function dedupeRows(rows: CompanyRow[]): CompanyRow[] {
+  const byUid = new Map<string, CompanyRow>();
+  for (const row of rows) byUid.set(row.uid, row);
+
+  const seenEhraid = new Set<number>();
+  const kept: CompanyRow[] = [];
+  for (const row of [...byUid.values()].reverse()) {
+    if (row.ehraid !== null) {
+      if (seenEhraid.has(row.ehraid)) continue;
+      seenEhraid.add(row.ehraid);
+    }
+    kept.push(row);
+  }
+  return kept.reverse();
+}
+
 async function upsertBatch(batch: CompanyFull[]) {
-  await db.insert(companies).values(batch.map(companyToRow)).onConflictDoUpdate({
+  const rows = dedupeRows(batch.map(companyToRow));
+
+  // `companies` has a UNIQUE constraint on ehraid as well as its uid primary
+  // key, but the upsert below can only resolve conflicts on one of them. When
+  // Zefix reassigns a company's uid, the incoming row keeps its old ehraid and
+  // collides on that constraint instead, which ON CONFLICT (uid) does not
+  // cover — the whole batch then dies with 23505. Retire any stale row holding
+  // one of this batch's ehraids under a different uid first.
+  const ehraids = rows.map((r) => r.ehraid).filter((e): e is number => e !== null);
+  if (ehraids.length > 0) {
+    await db.delete(companies).where(and(
+      inArray(companies.ehraid, ehraids),
+      notInArray(companies.uid, rows.map((r) => r.uid)),
+    ));
+  }
+
+  await db.insert(companies).values(rows).onConflictDoUpdate({
     target: companies.uid,
     set: {
       ehraid: sql`excluded.ehraid`,
@@ -160,8 +200,12 @@ async function upsertBatch(batch: CompanyFull[]) {
     },
   });
 
+  // company_addresses.company_uid is a foreign key, so only write addresses for
+  // companies that survived dedupeRows() and were actually inserted above.
+  const insertedUids = new Set(rows.map((r) => r.uid));
+
   for (const company of batch) {
-    if (!company.address) continue;
+    if (!company.address || !insertedUids.has(company.uid)) continue;
 
     await db.insert(companyAddresses).values({
       companyUid: company.uid,
