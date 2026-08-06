@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { CANTONS } from "@swiss-biz-hunter/types";
 
 export function BrowseFilters() {
   const router = useRouter();
@@ -25,21 +24,6 @@ export function BrowseFilters() {
   return (
     <div className="flex flex-wrap items-center gap-4">
       <div className="flex flex-col gap-1.5">
-        <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400 ml-1">Canton</label>
-        <select
-          aria-label="Filter by canton"
-          className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-xs font-bold uppercase tracking-widest px-3 min-h-[44px] outline-none focus:border-red-600 transition-colors cursor-pointer"
-          value={searchParams.get("canton") || ""}
-          onChange={(e) => updateFilters("canton", e.target.value)}
-        >
-          <option value="">All Cantons</option>
-          {CANTONS.sort().map(c => (
-            <option key={c} value={c}>{c}</option>
-          ))}
-        </select>
-      </div>
-
-      <div className="flex flex-col gap-1.5">
         <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400 ml-1">Sort By</label>
         <select
           aria-label="Sort by"
@@ -49,7 +33,6 @@ export function BrowseFilters() {
         >
           <option value="name">Name</option>
           <option value="uid">UID</option>
-          <option value="canton">Canton</option>
           <option value="status">Status</option>
         </select>
       </div>

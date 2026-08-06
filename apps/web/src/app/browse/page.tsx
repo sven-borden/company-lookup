@@ -14,14 +14,12 @@ export default async function BrowsePage({ searchParams }: PageProps) {
 
   const page = typeof params.page === "string" ? parseInt(params.page) : 1;
   const pageSize = typeof params.pageSize === "string" ? parseInt(params.pageSize) : 20;
-  const canton = typeof params.canton === "string" ? params.canton : undefined;
-  const sortBy = (typeof params.sortBy === "string" ? params.sortBy : "name") as "name" | "uid" | "canton" | "status";
+  const sortBy = (typeof params.sortBy === "string" ? params.sortBy : "name") as "name" | "uid" | "status";
   const sortOrder = (typeof params.sortOrder === "string" ? params.sortOrder : "asc") as "asc" | "desc";
 
   const { companies: displayCompanies, total: totalItems, totalPages } = await browseCompanies({
     page,
     pageSize,
-    canton,
     sortBy,
     sortOrder,
   });
@@ -35,7 +33,7 @@ export default async function BrowsePage({ searchParams }: PageProps) {
               Browse Registry
             </h1>
             <p className="text-zinc-500 font-medium">
-              Explore the complete Swiss commercial registry data.
+              Explore the complete commercial registry of Canton Vaud.
             </p>
           </div>
           <Suspense fallback={<div className="h-12 w-64 bg-zinc-100 animate-pulse" />}>

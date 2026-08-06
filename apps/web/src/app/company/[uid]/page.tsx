@@ -5,7 +5,6 @@ import { Shell } from "@/components/layout/Shell";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardContent } from "@/components/ui/Card";
 import { getCompanyByUid } from "@/lib/data/companies";
-import { MOCK_COMPANY_FULL } from "@/lib/data/mock-companies";
 import { CompanyShort, CompanyStatus } from "@swiss-biz-hunter/types";
 
 interface PageProps {
@@ -61,13 +60,7 @@ export default async function CompanyDetailPage({ params }: PageProps) {
   const { uid } = await params;
   const decodedUid = decodeURIComponent(uid);
 
-  // Attempt to fetch from Firestore
-  let company = await getCompanyByUid(decodedUid);
-
-  // Fallback to mock for known demo UIDs if Firestore is empty
-  if (!company && (decodedUid === "CHE-123.456.789" || decodedUid === "CHE-105.909.036")) {
-     company = MOCK_COMPANY_FULL;
-  }
+  const company = await getCompanyByUid(decodedUid);
 
   if (!company) {
     notFound();

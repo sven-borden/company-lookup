@@ -1,4 +1,4 @@
-import { eq, and, or, ilike, asc, desc, count, sql } from "drizzle-orm";
+import { eq, or, ilike, asc, desc, count, sql } from "drizzle-orm";
 import { db } from "../db";
 import {
   companies, companyAddresses, officers, shareholders,
@@ -6,8 +6,7 @@ import {
 import type { CompanyShort, CompanyFull } from "@swiss-biz-hunter/types";
 
 export interface BrowseFilters {
-  canton?: string;
-  sortBy?: "name" | "uid" | "canton" | "status";
+  sortBy?: "name" | "uid" | "status";
   sortOrder?: "asc" | "desc";
   page?: number;
   pageSize?: number;
@@ -21,15 +20,8 @@ export interface BrowseResult {
   totalPages: number;
 }
 
-export interface SearchFilters {
-  canton?: string;
-  legalFormId?: number;
-  activeOnly?: boolean;
-}
-
 export async function browseCompanies(filters: BrowseFilters = {}): Promise<BrowseResult> {
   const {
-    canton,
     sortBy = "name",
     sortOrder = "asc",
     page = 1,
@@ -40,19 +32,16 @@ export async function browseCompanies(filters: BrowseFilters = {}): Promise<Brow
   const clampedPage = Math.max(1, page);
   const offset = (clampedPage - 1) * clampedPageSize;
 
-  const where = canton ? eq(companies.canton, canton) : undefined;
-
   const orderCol =
     sortBy === "uid" ? companies.uid
-    : sortBy === "canton" ? companies.canton
     : sortBy === "status" ? companies.status
     : companies.name;
 
   const orderFn = sortOrder === "desc" ? desc : asc;
 
   const [totalResult, rows] = await Promise.all([
-    db.select({ count: count() }).from(companies).where(where),
-    db.select().from(companies).where(where).orderBy(orderFn(orderCol)).limit(clampedPageSize).offset(offset),
+    db.select({ count: count() }).from(companies),
+    db.select().from(companies).orderBy(orderFn(orderCol)).limit(clampedPageSize).offset(offset),
   ]);
 
   const total = Number(totalResult[0].count);
@@ -66,30 +55,19 @@ export async function browseCompanies(filters: BrowseFilters = {}): Promise<Brow
   };
 }
 
-export async function searchCompanies(
-  name: string,
-  filters?: SearchFilters
-): Promise<CompanyShort[]> {
+export async function searchCompanies(name: string): Promise<CompanyShort[]> {
   if (!name || name.trim() === "") return [];
 
   const q = name.trim();
   const escaped = q.replace(/%/g, "\\%").replace(/_/g, "\\_");
 
-  const nameFilter = or(
-    ilike(companies.name, `${escaped}%`),
-    sql`similarity(${companies.name}, ${q}) > 0.15`,
-  );
-
-  const where = and(
-    nameFilter,
-    filters?.canton ? eq(companies.canton, filters.canton) : undefined,
-    filters?.activeOnly ? eq(companies.status, "ACTIVE") : undefined,
-  );
-
   const rows = await db
     .select()
     .from(companies)
-    .where(where)
+    .where(or(
+      ilike(companies.name, `${escaped}%`),
+      sql`similarity(${companies.name}, ${q}) > 0.15`,
+    ))
     .orderBy(sql`similarity(${companies.name}, ${q}) DESC`, companies.name)
     .limit(20);
 

@@ -1,5 +1,46 @@
 import { sql } from "drizzle-orm";
 import { db } from "./index";
+import { CANTON } from "@swiss-biz-hunter/types";
+
+const PURGE_BATCH_SIZE = 20000;
+
+/**
+ * Drop every company outside the target canton. The platform used to sync all
+ * 26 cantons; those rows are now dead weight.
+ *
+ * Runs in batches so no single statement holds a huge transaction, and is
+ * fire-and-forget so a first boot against a full multi-canton database serves
+ * traffic immediately instead of failing its health check while ~700k rows
+ * drain. `idx_companies_non_target_canton` is a partial index over exactly the
+ * rows this deletes, so once the drain is done every later boot resolves this
+ * against an empty index instead of scanning the table.
+ *
+ * Note: DELETE does not return disk to the OS — run `VACUUM (FULL, ANALYZE)
+ * companies` manually once the drain completes.
+ */
+export async function purgeOtherCantons() {
+  let removed = 0;
+
+  for (;;) {
+    const result = await db.execute(sql`
+      DELETE FROM companies WHERE ctid IN (
+        SELECT ctid FROM companies WHERE canton <> ${CANTON} LIMIT ${PURGE_BATCH_SIZE}
+      )
+    `);
+
+    const deleted = result.count ?? 0;
+    if (deleted === 0) break;
+
+    removed += deleted;
+    console.log(`[purge] removed ${removed} non-${CANTON} companies so far`);
+  }
+
+  await db.execute(sql`DELETE FROM canton_stats WHERE canton <> ${CANTON}`);
+
+  if (removed > 0) {
+    console.log(`[purge] done — ${removed} non-${CANTON} companies removed. Run VACUUM (FULL, ANALYZE) companies to reclaim disk.`);
+  }
+}
 
 export async function initializeDatabase() {
   await db.execute(sql`CREATE EXTENSION IF NOT EXISTS pg_trgm`);
@@ -108,9 +149,22 @@ export async function initializeDatabase() {
     )
   `);
 
-  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_companies_canton ON companies(canton)`);
+  // Partial index over the rows purgeOtherCantons() deletes. Empty (and so
+  // ~free) once the drain finishes, unlike the full canton index it replaces —
+  // which indexed a column that is now the same value on every row.
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS idx_companies_non_target_canton
+    ON companies(canton) WHERE canton <> ${CANTON}
+  `);
+  await db.execute(sql`DROP INDEX IF EXISTS idx_companies_canton`);
+  // Serves /browse, which is ORDER BY name with LIMIT/OFFSET. The GIN trigram
+  // index below powers similarity search but cannot drive an ordered scan.
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_companies_name ON companies(name)`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_companies_status ON companies(status)`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_companies_name_trgm ON companies USING GIN (name gin_trgm_ops)`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_officers_company_uid ON officers(company_uid)`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_shareholders_company_uid ON shareholders(company_uid)`);
+
+  // Detached on purpose — see purgeOtherCantons().
+  void purgeOtherCantons().catch((err) => console.error("[purge] failed:", err));
 }

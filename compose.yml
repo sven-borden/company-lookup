@@ -1,0 +1,30 @@
+# Local development database only. Production runs its own managed PostgreSQL
+# (Coolify service `company-lookup-db`) — this file is never deployed.
+#
+#   docker compose up -d
+#   DATABASE_URL=postgres://postgres:postgres@localhost:5432/company_lookup
+#
+# Schema is created by the app on boot (see apps/web/src/lib/db/init.ts), so
+# there is nothing to migrate after the container is up.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: company-lookup-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: company_lookup
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d company_lookup"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:

@@ -1,109 +1,117 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Hoisted mock for adminDb
-const { mockGet, mockLimit, mockWhere, mockDoc, mockCollection, mockAdminDb } = vi.hoisted(() => {
-  const mockGet = vi.fn();
-  const mockLimit = vi.fn();
-  const mockWhere = vi.fn();
-  const mockDoc = vi.fn();
-  const mockCollection = vi.fn();
-  const mockAdminDb = { collection: mockCollection, doc: mockDoc };
+// The data layer builds Drizzle query chains; these stubs record the terminal
+// arguments (limit/offset, findFirst's where) without emulating SQL execution.
+const { mockLimit, mockOffset, mockFindFirst, mockSelect } = vi.hoisted(() => {
+  const mockOffset = vi.fn(async () => []);
+  const mockLimit = vi.fn(() => ({ offset: mockOffset }));
+  const mockFindFirst = vi.fn<(args?: unknown) => Promise<undefined>>(async () => undefined);
 
-  // Chain: collection().where().where().limit().get()
-  // Each method returns an object that supports chaining
-  const queryChain = { where: mockWhere, limit: mockLimit, get: mockGet };
-  mockWhere.mockReturnValue(queryChain);
-  mockLimit.mockReturnValue(queryChain);
-  mockCollection.mockReturnValue({ where: mockWhere, doc: mockDoc });
-  mockDoc.mockReturnValue({ get: mockGet });
+  // browseCompanies fires two selects in parallel: a count and a page of rows.
+  // The count chain resolves straight off .from(); the row chain adds orderBy.
+  const mockSelect = vi.fn((fields?: unknown) => {
+    if (fields) {
+      return { from: () => Promise.resolve([{ count: 0 }]) };
+    }
+    return {
+      from: () => ({
+        orderBy: () => ({ limit: mockLimit }),
+        where: () => ({ orderBy: () => ({ limit: mockLimit }) }),
+      }),
+    };
+  });
 
-  return { mockGet, mockLimit, mockWhere, mockDoc, mockCollection, mockAdminDb };
+  return { mockLimit, mockOffset, mockFindFirst, mockSelect };
 });
 
-vi.mock("../firebase/admin", () => ({ adminDb: mockAdminDb }));
+vi.mock("../db", () => ({
+  db: {
+    select: mockSelect,
+    query: { companies: { findFirst: mockFindFirst } },
+  },
+}));
 
-import { searchCompanies, getCompanyByUid } from "./companies";
+import { browseCompanies, searchCompanies, getCompanyByUid } from "./companies";
+
+/**
+ * Pull the bound parameter values out of the `where` condition findFirst was
+ * called with. Drizzle's eq() builds a SQL object whose queryChunks hold the
+ * column, the operator, and a Param carrying the value; the object graph is
+ * circular, so it can't just be stringified.
+ */
+function boundParams(callArgs: unknown): unknown[] {
+  const where = (callArgs as { where?: { queryChunks?: unknown[] } })?.where;
+  return (where?.queryChunks ?? [])
+    .filter((chunk): chunk is { value: unknown } =>
+      typeof chunk === "object" && chunk !== null && "value" in chunk)
+    .map((chunk) => chunk.value);
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
-  const queryChain = { where: mockWhere, limit: mockLimit, get: mockGet };
-  mockWhere.mockReturnValue(queryChain);
-  mockLimit.mockReturnValue(queryChain);
-  mockCollection.mockReturnValue({ where: mockWhere, doc: mockDoc });
-  mockDoc.mockReturnValue({ get: mockGet });
+  mockLimit.mockReturnValue({ offset: mockOffset });
+  mockOffset.mockResolvedValue([]);
+  mockFindFirst.mockResolvedValue(undefined);
 });
 
 describe("searchCompanies", () => {
-  it("returns [] for empty string without querying Firestore", async () => {
-    const result = await searchCompanies("");
-    expect(result).toEqual([]);
-    expect(mockCollection).not.toHaveBeenCalled();
+  it("returns [] for an empty string without touching the database", async () => {
+    expect(await searchCompanies("")).toEqual([]);
+    expect(mockSelect).not.toHaveBeenCalled();
   });
 
-  it("returns [] for whitespace-only string", async () => {
-    const result = await searchCompanies("   ");
-    expect(result).toEqual([]);
-    expect(mockCollection).not.toHaveBeenCalled();
+  it("returns [] for a whitespace-only query without touching the database", async () => {
+    expect(await searchCompanies("   ")).toEqual([]);
+    expect(mockSelect).not.toHaveBeenCalled();
   });
+});
 
-  it("calls where with >= and <= prefix range on name", async () => {
-    mockGet.mockResolvedValue({ docs: [] });
-    await searchCompanies("Acme");
-    expect(mockWhere).toHaveBeenCalledWith("nameLower", ">=", "acme");
-    expect(mockWhere).toHaveBeenCalledWith("nameLower", "<=", "acme\uf8ff");
-  });
-
-  it("adds canton filter when filters.canton is set", async () => {
-    mockGet.mockResolvedValue({ docs: [] });
-    await searchCompanies("Acme", { canton: "ZH" });
-    expect(mockWhere).toHaveBeenCalledWith("canton", "==", "ZH");
-  });
-
-  it("adds status filter when filters.activeOnly is true", async () => {
-    mockGet.mockResolvedValue({ docs: [] });
-    await searchCompanies("Acme", { activeOnly: true });
-    expect(mockWhere).toHaveBeenCalledWith("status", "==", "ACTIVE");
-  });
-
-  it("maps doc.id to uid field in results", async () => {
-    mockGet.mockResolvedValue({
-      docs: [
-        { id: "CHE-123.456.789", data: () => ({ name: "Test AG", status: "ACTIVE" }) },
-      ],
-    });
-    const result = await searchCompanies("Test");
-    expect(result[0].uid).toBe("CHE-123.456.789");
-  });
-
-  it("applies limit of 20", async () => {
-    mockGet.mockResolvedValue({ docs: [] });
-    await searchCompanies("Acme");
+describe("browseCompanies", () => {
+  it("defaults to page 1 with 20 rows per page", async () => {
+    await browseCompanies();
     expect(mockLimit).toHaveBeenCalledWith(20);
+    expect(mockOffset).toHaveBeenCalledWith(0);
+  });
+
+  it("clamps pageSize to a maximum of 100", async () => {
+    await browseCompanies({ pageSize: 5000 });
+    expect(mockLimit).toHaveBeenCalledWith(100);
+  });
+
+  it("clamps pageSize to a minimum of 1", async () => {
+    await browseCompanies({ pageSize: 0 });
+    expect(mockLimit).toHaveBeenCalledWith(1);
+  });
+
+  it("clamps page to a minimum of 1, so offset never goes negative", async () => {
+    await browseCompanies({ page: -3 });
+    expect(mockOffset).toHaveBeenCalledWith(0);
+  });
+
+  it("computes offset from the clamped page and pageSize", async () => {
+    await browseCompanies({ page: 4, pageSize: 25 });
+    expect(mockOffset).toHaveBeenCalledWith(75);
   });
 });
 
 describe("getCompanyByUid", () => {
-  it("returns null for empty string", async () => {
-    const result = await getCompanyByUid("");
-    expect(result).toBeNull();
-    expect(mockCollection).not.toHaveBeenCalled();
+  it("returns null for an empty uid without querying", async () => {
+    expect(await getCompanyByUid("")).toBeNull();
+    expect(mockFindFirst).not.toHaveBeenCalled();
   });
 
-  it("returns null when document does not exist", async () => {
-    mockGet.mockResolvedValue({ exists: false });
-    const result = await getCompanyByUid("CHE-123.456.789");
-    expect(result).toBeNull();
+  it("normalizes a bare 9-digit uid into CHE-xxx.xxx.xxx form", async () => {
+    await getCompanyByUid("CHE123456789");
+    expect(mockFindFirst).toHaveBeenCalledTimes(1);
+    expect(boundParams(mockFindFirst.mock.calls[0][0])).toContain("CHE-123.456.789");
   });
 
-  it("returns company data with uid from doc.id when document exists", async () => {
-    mockGet.mockResolvedValue({
-      exists: true,
-      id: "CHE-123.456.789",
-      data: () => ({ name: "Test AG", status: "ACTIVE" }),
-    });
-    const result = await getCompanyByUid("CHE-123.456.789");
-    expect(result).not.toBeNull();
-    expect(result?.uid).toBe("CHE-123.456.789");
-    expect(result?.name).toBe("Test AG");
+  it("leaves an already-formatted uid untouched", async () => {
+    await getCompanyByUid("CHE-123.456.789");
+    expect(boundParams(mockFindFirst.mock.calls[0][0])).toContain("CHE-123.456.789");
+  });
+
+  it("returns null when no row matches", async () => {
+    expect(await getCompanyByUid("CHE-000.000.000")).toBeNull();
   });
 });

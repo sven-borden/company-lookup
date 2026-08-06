@@ -19,29 +19,21 @@ interface CronLog {
   error?: string;
 }
 
-interface CantonStat {
+interface VaudStats {
   totalCompanies: number;
   lastSyncedAt?: string;
 }
 
-const CANTONS = [
-  "AG", "AI", "AR", "BE", "BL", "BS", "FR", "GE", "GL", "GR",
-  "JU", "LU", "NE", "NW", "OW", "SG", "SH", "SO", "SZ", "TG",
-  "TI", "UR", "VD", "VS", "ZG", "ZH",
-];
-
 export default function AdminDashboard() {
   const [logs, setLogs] = useState<CronLog[]>([]);
-  const [stats, setStats] = useState<Record<string, CantonStat>>({});
+  const [stats, setStats] = useState<VaudStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingStats, setLoadingStats] = useState(true);
-  const [triggering, setTriggering] = useState<Record<string, boolean>>({});
-  
+  const [triggering, setTriggering] = useState(false);
+
   const { success, error } = useToast();
-  
-  // Dialog state
+
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [selectedCanton, setSelectedCanton] = useState<string | null>(null);
 
   const fetchLogs = async () => {
     try {
@@ -59,7 +51,7 @@ export default function AdminDashboard() {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch("/api/admin/stats/cantons");
+      const res = await fetch("/api/admin/stats");
       if (res.ok) {
         const data = await res.json();
         setStats(data);
@@ -96,33 +88,26 @@ export default function AdminDashboard() {
     };
   }, []);
 
-  const handleOpenConfirm = (canton: string) => {
-    setSelectedCanton(canton);
-    setConfirmOpen(true);
-  };
-
-  const handleTriggerCantonSync = async () => {
-    if (!selectedCanton) return;
-    
-    const canton = selectedCanton;
+  const handleTriggerSync = async () => {
     setConfirmOpen(false);
-    setTriggering(prev => ({ ...prev, [canton]: true }));
-    
+    setTriggering(true);
+
     try {
-      const res = await fetch(`/api/admin/sync/${canton.toLowerCase()}`, { method: "POST" });
-      if (res.ok) {
-        success(`Sync triggered for ${canton}`);
+      const res = await fetch("/api/admin/sync", { method: "POST" });
+      if (res.status === 202) {
+        success("Sync started — this runs in the background for a while");
         fetchLogs();
         fetchStats();
+      } else if (res.status === 409) {
+        error("A sync is already running");
       } else {
-        error(`Failed to trigger sync for ${canton}`);
+        error("Failed to trigger sync");
       }
     } catch (err) {
       console.error("Trigger error:", err);
       error("Error triggering sync");
     } finally {
-      setTriggering(prev => ({ ...prev, [canton]: false }));
-      setSelectedCanton(null);
+      setTriggering(false);
     }
   };
 
@@ -148,8 +133,6 @@ export default function AdminDashboard() {
       second: "2-digit",
     });
   };
-
-  const totalRecords = Object.values(stats).reduce((acc, curr) => acc + (curr.totalCompanies || 0), 0);
 
   return (
     <Shell>
@@ -178,7 +161,7 @@ export default function AdminDashboard() {
                 <div className="grid grid-cols-1 gap-4 text-sm">
                   <div>
                     <span className="block text-zinc-500 uppercase text-[10px] font-bold tracking-widest mb-1">Schedule</span>
-                    <span className="font-mono">Daily 02:00 Zurich</span>
+                    <span className="font-mono">Daily 02:15 Zurich</span>
                   </div>
                   <div>
                     <span className="block text-zinc-500 uppercase text-[10px] font-bold tracking-widest mb-1">Last Job Status</span>
@@ -193,50 +176,36 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
 
-          {/* Canton Stats & Triggers */}
+          {/* Vaud registry stats & manual trigger */}
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle>Canton Statistics</CardTitle>
-              <span className="text-xs text-zinc-500 font-mono">
-                {loadingStats ? "Updating..." : `Total Records: ${totalRecords.toLocaleString()}`}
-              </span>
+              <CardTitle>Canton Vaud</CardTitle>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setConfirmOpen(true)}
+                disabled={triggering}
+                className="h-9 px-3 text-[10px]"
+              >
+                {triggering ? "..." : "Sync Now"}
+              </Button>
             </CardHeader>
-            <div className="overflow-x-auto max-h-[400px]">
-              <table className="w-full text-left text-sm">
-                <thead className="sticky top-0 bg-background z-10">
-                  <tr className="border-b border-zinc-100 dark:border-zinc-900 text-[10px] uppercase font-bold tracking-widest text-zinc-500">
-                    <th className="px-4 py-3">Canton</th>
-                    <th className="px-4 py-3 text-right">Records</th>
-                    <th className="px-4 py-3 text-right">Last Sync</th>
-                    <th className="px-4 py-3 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-900">
-                  {CANTONS.map((canton) => (
-                    <tr key={canton} className="hover:bg-zinc-50 dark:hover:bg-zinc-950/50 transition-colors">
-                      <td className="px-4 py-3 font-bold font-mono">{canton}</td>
-                      <td className="px-4 py-3 text-right font-mono">
-                        {loadingStats ? "..." : (stats[canton]?.totalCompanies || 0).toLocaleString()}
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono text-[10px] text-zinc-500">
-                        {loadingStats ? "..." : formatDate(stats[canton]?.lastSyncedAt)}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          onClick={() => handleOpenConfirm(canton)}
-                          disabled={triggering[canton]}
-                          className="h-9 px-3 text-[10px]"
-                        >
-                          {triggering[canton] ? "..." : "Sync"}
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 text-sm">
+                <div>
+                  <span className="block text-zinc-500 uppercase text-[10px] font-bold tracking-widest mb-1">Records</span>
+                  <span className="font-mono text-3xl font-black tracking-tighter">
+                    {loadingStats ? "..." : (stats?.totalCompanies ?? 0).toLocaleString()}
+                  </span>
+                </div>
+                <div>
+                  <span className="block text-zinc-500 uppercase text-[10px] font-bold tracking-widest mb-1">Last Sync</span>
+                  <span className="font-mono">
+                    {loadingStats ? "..." : formatDate(stats?.lastSyncedAt)}
+                  </span>
+                </div>
+              </div>
+            </CardContent>
           </Card>
         </div>
 
@@ -272,15 +241,11 @@ export default function AdminDashboard() {
                       ? `${Math.round((new Date(log.endTime).getTime() - new Date(log.startTime).getTime()) / 1000)}s` 
                       : "-";
                     
-                    const typeLabel = log.functionName.startsWith("manualSync:") 
-                      ? `Sync ${log.functionName.split(":")[1]}`
-                      : log.functionName.replace("syncZefixData", "Scheduled").replace("manualSync", "Manual");
-
                     return (
                       <tr key={log.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-950/50 transition-colors">
                         <td className="px-4 py-4 font-mono whitespace-nowrap">{formatFullDate(log.startTime)}</td>
                         <td className="px-4 py-4">
-                          <span className="font-medium">{typeLabel}</span>
+                          <span className="font-medium font-mono">{log.functionName}</span>
                         </td>
                         <td className="px-4 py-4">
                           <Badge variant={log.status === "success" ? "active" : log.status === "running" ? "accent" : "cancelled"}>
@@ -305,9 +270,9 @@ export default function AdminDashboard() {
       <ConfirmDialog
         isOpen={confirmOpen}
         onClose={() => setConfirmOpen(false)}
-        onConfirm={handleTriggerCantonSync}
-        title={`Sync Canton ${selectedCanton}`}
-        description={`This will trigger a manual search and sync of all companies in Canton ${selectedCanton} from the official Zefix Registry. This process may take several minutes.`}
+        onConfirm={handleTriggerSync}
+        title="Sync Canton Vaud"
+        description="This will trigger a manual search and sync of all companies in Canton Vaud from the official Zefix Registry. This process may take several minutes."
         confirmLabel="Start Sync"
       />
     </Shell>

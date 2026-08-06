@@ -1,24 +1,29 @@
 # SwissBizHunter — Claude Code Instructions
 
-Swiss business acquisition intelligence platform. Monorepo powered by Zefix PublicREST API, scraping, and AI.
+Business acquisition intelligence platform for **Canton Vaud**. Monorepo powered by Zefix PublicREST API, scraping, and AI.
+
+## Scope
+
+Vaud only. `CANTON` in `packages/types/src/zefix.ts` is the single source of truth — do not reintroduce a canton list, a canton filter, or per-canton routing. Companies outside VD are purged in the background on boot by `purgeOtherCantons()` in `apps/web/src/lib/db/init.ts`.
 
 ## Architecture
 
-- **Frontend**: `apps/web/` — Next.js 16 (App Router), Tailwind CSS 4, deployed to Vercel
-- **Backend**: Firebase (Firestore + Cloud Functions v2)
+- **Frontend**: `apps/web/` — Next.js 16 (App Router), Tailwind CSS 4
+- **Database**: PostgreSQL + Drizzle ORM. The sync engine and admin API live inside the Next.js app; there is no separate backend service.
 - **Shared types**: `packages/types/` — `@swiss-biz-hunter/types`
-- **Functions**: `functions/src/` — scheduled Zefix sync, Zefix API client
+- **Hosting**: Docker image (`Dockerfile`) on Coolify
 
-**Data flow**: `Zefix API → Firebase Function (scheduled sync) → Firestore → Next.js frontend`
+**Data flow**: `Zefix API → POST /api/admin/sync (nightly cron) → PostgreSQL → Next.js frontend`
 
 ## Dev Commands (run from monorepo root)
 
 ```bash
 npm install          # install all workspaces
+docker compose up -d # local PostgreSQL 17 (compose.yml) — dev only
 npm run dev          # Next.js on port 3001
-npm run emulators    # Firebase Firestore + Functions emulators
 npm run build        # build web app
 npm run lint         # lint
+npm test             # vitest
 ```
 
 ## Environment Setup
@@ -26,36 +31,52 @@ npm run lint         # lint
 Next.js only loads `.env.local` from its own app directory.
 
 - **Required file**: `apps/web/.env.local` (not `/.env.local`)
-- Copy from root `.env.local` or `.env.example` and fill in Admin SDK credentials
-- `FIREBASE_PRIVATE_KEY` must be quoted and use `\n` literal escapes (Next.js handles the replace)
+- Copy from `.env.example` and fill in values
 
 ### Required vars
 
 ```
+DATABASE_URL                 # PostgreSQL connection string — app cannot boot without it
 ZEFIX_USERNAME / ZEFIX_PASSWORD / ZEFIX_API_BASE_URL
-NEXT_PUBLIC_FIREBASE_API_KEY / AUTH_DOMAIN / PROJECT_ID / STORAGE_BUCKET / MESSAGING_SENDER_ID / APP_ID
-FIREBASE_CLIENT_EMAIL        # from service account JSON
-FIREBASE_PRIVATE_KEY         # from service account JSON (quoted, with \n)
 ```
 
-Service account JSON files matching `*-firebase-adminsdk-*.json` are gitignored — never commit them.
+The `DATABASE_URL` in `.env.example` points at the local `compose.yml` database. Production uses the Coolify-managed `company-lookup-db` service.
 
-## Firebase Setup Checklist (new environment)
+## Database
 
-1. Enable Cloud Firestore API in Google Cloud Console
-2. Create the Firestore database in Firebase Console (`/firestore → Create database`)
-3. Select region (e.g. `europe-west6` for Switzerland)
+Schema is created on boot by `initializeDatabase()` (`apps/web/src/lib/db/init.ts`), invoked from `instrumentation.ts`. It is raw `CREATE TABLE IF NOT EXISTS` DDL, **not** Drizzle migrations.
+
+The schema is declared twice — `db/schema.ts` (Drizzle DSL, drives queries) and `db/init.ts` (raw SQL, what actually executes). Any column or index change must be made in **both**.
+
+`DELETE` does not return disk to the OS. After a large purge, run once manually during a quiet window (it takes an `ACCESS EXCLUSIVE` lock):
+
+```sql
+VACUUM (FULL, ANALYZE) companies;
+```
+
+## Sync
+
+`syncVaud()` in `apps/web/src/lib/sync/sync-vaud.ts`. Zefix has no "list all" endpoint, so discovery brute-forces name prefixes `a`–`z` in parallel; an oversized result set throws `RESULTLIST_TO_LARGE` and recurses into sub-prefixes. **That recursion depends on `zefixPost` embedding the response body in the thrown error** — don't strip it.
+
+`POST /api/admin/sync` returns `202` and runs the sync detached so the Coolify cron's `curl` can't be killed by the SSH command timeout. A `globalThis` flag rejects overlapping runs with `409`. Results land in `sync_logs`, shown at `/admin/dashboard`.
+
+Cron: Coolify scheduled task `zefix-daily-sync`, `15 2 * * *`.
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `apps/web/src/lib/firebase/admin.ts` | Firebase Admin SDK init (server-side) |
-| `apps/web/src/lib/data/companies.ts` | Firestore queries |
-| `apps/web/src/app/search/page.tsx` | Search results page |
+| `apps/web/src/lib/db/init.ts` | Boot-time DDL, indexes, non-VD purge |
+| `apps/web/src/lib/db/schema.ts` | Drizzle schema + relations |
+| `apps/web/src/lib/data/companies.ts` | Query layer (browse, search, detail) |
+| `apps/web/src/lib/sync/sync-vaud.ts` | Zefix sync engine |
+| `apps/web/src/app/api/admin/sync/route.ts` | Sync trigger (cron target) |
 | `apps/web/src/app/company/[uid]/page.tsx` | Company detail page |
-| `functions/src/zefix/client.ts` | Zefix API client |
-| `functions/src/sync/sync.ts` | Scheduled weekly sync |
+
+## Known Gaps
+
+- Admin routes have **no authentication**. `POST /api/admin/sync` is anonymously reachable and starts an hours-long crawl.
+- `officers` / `shareholders` tables have a read path but no writer — the Vaud cantonal-register scraper that populated them was removed.
 
 ## Styling
 

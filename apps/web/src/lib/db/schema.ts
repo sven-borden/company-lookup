@@ -1,7 +1,7 @@
 import {
   pgTable, text, integer, numeric, timestamp, jsonb, serial, index,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   SogcPublication, CompanyOldName, CompanyShort, DFIEString,
 } from "@swiss-biz-hunter/types";
@@ -41,7 +41,9 @@ export const companies = pgTable("companies", {
   auditCompanies: jsonb("audit_companies").$type<CompanyShort[]>(),
   syncedAt: timestamp("synced_at", { withTimezone: true }).defaultNow(),
 }, (t) => [
-  index("idx_companies_canton").on(t.canton),
+  // Partial index over non-Vaud rows only — see purgeOtherCantons() in init.ts.
+  index("idx_companies_non_target_canton").on(t.canton).where(sql`canton <> 'VD'`),
+  index("idx_companies_name").on(t.name),
   index("idx_companies_status").on(t.status),
 ]);
 

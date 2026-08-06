@@ -1,6 +1,8 @@
 # Backend Contract
 
-All backend access is either a **server-side data layer function** (called directly by Next.js server components) or an **HTTP API route** (called by the admin UI). There is no public REST API.
+All backend access is either a **server-side data layer function** (called directly by Next.js server components) or an **HTTP API route** (called by the admin UI or the nightly cron). There is no public REST API.
+
+Storage is PostgreSQL, accessed through Drizzle ORM. The platform covers **Canton Vaud only** — `CANTON` in `@swiss-biz-hunter/types` is the single source of truth, and no query takes a canton parameter.
 
 ---
 
@@ -12,61 +14,50 @@ All backend access is either a **server-side data layer function** (called direc
 browseCompanies(filters?: BrowseFilters): Promise<BrowseResult>
 ```
 
-Paginates and filters companies for the Browse page.
+Paginates companies for the Browse page.
 
 **`BrowseFilters`**
 
-| Field       | Type                                          | Default  | Description                          |
-|-------------|-----------------------------------------------|----------|--------------------------------------|
-| `page`      | `number`                                      | `1`      | 1-based page number                  |
-| `pageSize`  | `number`                                      | `20`     | Items per page (clamped to 1–100)    |
-| `canton`    | `string`                                      | —        | Filter by canton code (e.g. `"ZH"`) |
-| `sortBy`    | `"name" \| "uid" \| "canton" \| "status"`    | `"name"` | Field to sort by                     |
-| `sortOrder` | `"asc" \| "desc"`                            | `"asc"`  | Sort direction                       |
+| Field       | Type                              | Default  | Description                       |
+|-------------|-----------------------------------|----------|-----------------------------------|
+| `page`      | `number`                          | `1`      | 1-based page number (clamped to ≥1) |
+| `pageSize`  | `number`                          | `20`     | Items per page (clamped to 1–100) |
+| `sortBy`    | `"name" \| "uid" \| "status"`     | `"name"` | Field to sort by                  |
+| `sortOrder` | `"asc" \| "desc"`                 | `"asc"`  | Sort direction                    |
 
 **`BrowseResult`**
 
 ```ts
 {
   companies: CompanyShort[];
-  total: number;       // total matching companies
+  total: number;       // total rows in the table
   page: number;
   pageSize: number;
   totalPages: number;
 }
 ```
 
-**Firestore strategy**
+**Query strategy**
 
-- `sortBy = "name"` maps to the stored `nameLower` field for case-insensitive sorting.
-- Canton filter uses `.where("canton", "==", canton)`.
-- Pagination via `.offset((page-1) * pageSize).limit(pageSize)`.
-- Total count via Firestore `.count()` aggregation (same filters, no sort/limit), run in parallel with the data fetch.
-- Composite indexes in `firestore.indexes.json` cover all `canton + sortField` combinations.
+- No `WHERE` clause — every row is Vaud.
+- `ORDER BY <sortBy> <sortOrder> LIMIT pageSize OFFSET (page-1)*pageSize`, served by `idx_companies_name` for the default sort.
+- Total via `COUNT(*)`, run in parallel with the page fetch.
 
 ---
 
-### `searchCompanies(name, filters?)`
+### `searchCompanies(name)`
 
 ```ts
-searchCompanies(name: string, filters?: SearchFilters): Promise<CompanyShort[]>
+searchCompanies(name: string): Promise<CompanyShort[]>
 ```
 
-Prefix-searches companies by name. Returns up to 20 results. Returns `[]` if `name` is empty.
+Searches companies by name. Returns up to 20 results. Returns `[]` if `name` is empty or whitespace-only.
 
-**`SearchFilters`**
+**Query strategy**
 
-| Field         | Type      | Description                        |
-|---------------|-----------|------------------------------------|
-| `canton`      | `string`  | Filter by canton code              |
-| `legalFormId` | `number`  | Filter by legal form ID            |
-| `activeOnly`  | `boolean` | Filter to `status === "ACTIVE"` only |
-
-**Firestore strategy**
-
-- Normalises `name` to lowercase, then queries `nameLower >= name` and `nameLower <= name + "\uf8ff"` (standard Firestore prefix pattern).
-- `canton` and `activeOnly` filters applied as additional `.where()` clauses.
-- Note: `legalFormId` is defined on `SearchFilters` but not yet applied in the query — reserved for future use.
+- Matches on `name ILIKE '<escaped>%'` **OR** `similarity(name, q) > 0.15` (pg_trgm), so both prefix and fuzzy hits are returned. `%` and `_` in the input are escaped for the ILIKE arm.
+- Ordered by `similarity(name, q) DESC, name`.
+- Backed by `idx_companies_name_trgm`, a GIN trigram index.
 
 ---
 
@@ -76,115 +67,78 @@ Prefix-searches companies by name. Returns up to 20 results. Returns `[]` if `na
 getCompanyByUid(uid: string): Promise<CompanyFull | null>
 ```
 
-Fetches a single company document by its UID (Firestore document ID). Returns `null` if not found or `uid` is empty.
+Fetches a single company plus its address, officers and shareholders. Returns `null` if not found or `uid` is empty.
 
----
-
-## Data Layer — `lib/data/reference.ts`
-
-Simple `getAll` helpers that fetch entire reference collections. No filters, no pagination.
-
-| Function           | Collection    | Return type              |
-|--------------------|---------------|--------------------------|
-| `getLegalForms()`  | `legalForms`  | `Promise<LegalForm[]>`   |
-| `getCommunities()` | `communities` | `Promise<BfsCommunity[]>` |
-| `getRegistries()`  | `registries`  | `Promise<RegistryOfCommerce[]>` |
-
-Types are defined in `@swiss-biz-hunter/types`.
+A bare 9-digit input (`CHE123456789`) is normalised to canonical form (`CHE-123.456.789`) before lookup.
 
 ---
 
 ## Admin API Routes — `/api/admin/`
 
-All routes use Firebase Admin SDK and run server-side. There is no authentication middleware — these routes should only be exposed to admin users via UI-level access control.
+Server-side, no authentication middleware — these routes should only be exposed to admin users via network or UI-level access control.
 
 ---
 
-### `GET /api/admin/cron-logs`
+### `POST /api/admin/sync`
 
-Returns the last 20 cron execution log entries, ordered by `startTime` descending.
+Triggers a full Vaud sync. No request body. This is the nightly cron target (Coolify scheduled task `zefix-daily-sync`, `15 2 * * *`).
 
-**Response** `200 OK`
+**Sync logic** — `syncVaud()` in `lib/sync/sync-vaud.ts`
+
+- Fires all 26 single-letter name prefixes at the Zefix search endpoint in parallel. A prefix that returns `RESULTLIST_TO_LARGE` recurses with an additional letter.
+- Deduplicates by `ehraid`, then fetches full details with a concurrency cap of 25. Individual detail failures are skipped.
+- Upserts in batches of 100 via `INSERT ... ON CONFLICT (uid) DO UPDATE`; addresses are upserted per row.
+- Refreshes `canton_stats` with `totalCompanies` and `lastSyncedAt`.
+- Creates a `sync_logs` row with `functionName: "sync-vaud"`, updated on completion.
+
+**Response** `202 Accepted` — the sync runs detached, so the cron's `curl` returns immediately rather than being killed by Coolify's SSH command timeout.
 
 ```ts
-Array<{
-  id: string;           // Firestore document ID
-  functionName: string; // e.g. "manualSync" or "manualSync:ZH"
-  startTime: string;    // ISO date (converted from Firestore Timestamp)
-  endTime: string;      // ISO date
-  status: "running" | "success" | "failed";
-  cantons: string[];
-  totalSynced?: number;
-  results?: Record<string, number>; // canton → count synced (-1 on error)
-  error?: string;
-}>
+{ status: "started"; logId: number }
 ```
 
-**Error** `500` `{ "error": "Failed to fetch logs" }`
+**Conflict** `409` `{ "status": "already-running" }` — a sync is in flight on this server process.
+
+Progress and the final result live in `sync_logs`; poll `GET /api/admin/cron-logs`.
 
 ---
 
-### `GET /api/admin/stats/cantons`
+### `GET /api/admin/stats`
 
-Returns per-canton company counts and last sync timestamps from the `canton_stats` collection.
+Returns the Vaud company count and last sync time from `canton_stats`.
 
 **Response** `200 OK`
 
 ```ts
-Record<string, {        // keyed by canton code, e.g. "ZH"
+{
   totalCompanies: number;
-  lastSyncedAt: string; // ISO date (converted from Firestore Timestamp)
-}>
+  lastSyncedAt: string | null;  // ISO date
+}
 ```
 
 **Error** `500` `{ "error": "Failed to fetch stats" }`
 
 ---
 
-### `POST /api/admin/sync/trigger`
+### `GET /api/admin/cron-logs`
 
-Triggers a sync for the cantons scheduled for today's day of the week (based on `CANTON_SCHEDULE` from `@swiss-biz-hunter/types`). No request body required.
-
-**Sync logic**
-
-- Determines today's cantons via `CANTON_SCHEDULE[dayOfWeek]`.
-- For each canton: searches Zefix with `name: "*"`, fetches full company details, batch-writes to Firestore in batches of 500.
-- Creates a `cron_logs` entry with `functionName: "manualSync"`, updated on completion.
+Returns the last 20 sync log entries, ordered by `startTime` descending.
 
 **Response** `200 OK`
 
 ```ts
-{
-  status: "success";
-  totalSynced: number;
-  results: Record<string, number>; // canton → count synced (-1 on error)
-}
+Array<{
+  id: number;
+  functionName: string;  // "sync-vaud"
+  startTime: string;     // ISO date
+  endTime?: string;      // ISO date
+  status: "running" | "success" | "failed";
+  cantons: string[];     // always ["VD"]
+  totalSynced?: number;
+  error?: string;
+}>
 ```
 
-**Error** `500` `{ "error": "Sync failed" }`
+**Error** `500` `{ "error": "Failed to fetch logs" }`
 
----
-
-### `POST /api/admin/sync/[canton]`
-
-Triggers a full sync for a specific canton. No request body required.
-
-**Sync logic**
-
-- Iterates over alphabet prefixes (`a`–`z`), calling Zefix search for each. If a prefix returns a `RESULTLIST_TO_LARGE` error, it recurses with an additional letter prefix.
-- Deduplicates results by `ehraid` before fetching full company details.
-- Batch-writes to Firestore in batches of 500.
-- Updates `canton_stats/{canton}` with `totalCompanies` and `lastSyncedAt`.
-- Creates a `cron_logs` entry with `functionName: "manualSync:{CANTON}"`.
-
-**Response** `200 OK`
-
-```ts
-{
-  canton: string;      // uppercased canton code
-  synced: number;      // companies written in this run
-  totalInDb: number;   // total for this canton after sync
-}
-```
-
-**Error** `500` `{ "error": "<message>" }`
+Note: a process restart mid-sync leaves its row stuck at `status: "running"` — nothing reconciles orphaned runs on boot.

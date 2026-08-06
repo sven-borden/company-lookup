@@ -3,26 +3,9 @@ import { CantonalEnrichment } from "./enriched";
 // Zefix PublicREST API types
 // Based on https://www.zefix.admin.ch/ZefixPublicREST/v3/api-docs
 
-export const CANTONS = [
-  "AG", "AI", "AR", "BE", "BL", "BS", "FR", "GE", "GL", "GR",
-  "JU", "LU", "NE", "NW", "OW", "SG", "SH", "SO", "SZ", "TG",
-  "TI", "UR", "VD", "VS", "ZG", "ZH",
-];
-
-// Schedule mapping (0 = Sunday, 1 = Monday, ..., 6 = Saturday).
-// Balanced via greedy LPT (longest-processing-time) over per-canton company
-// counts so each day carries ~equal load (~100k). ZH is the single largest
-// canton (~115k) and a canton syncs atomically, so it owns a day alone.
-// Re-tune from real cantonStats.totalCompanies after a full clean sync.
-export const CANTON_SCHEDULE: Record<number, string[]> = {
-  0: ["ZH"],
-  1: ["BE", "SZ", "JU", "AR", "GL"],
-  2: ["VD", "TG", "GR", "AI"],
-  3: ["GE", "FR", "BL", "SH"],
-  4: ["AG", "LU", "NE", "NW"],
-  5: ["SG", "VS", "SO", "OW"],
-  6: ["ZG", "TI", "BS", "UR"],
-};
+// The only canton this platform covers. Zefix still returns a `canton` field on
+// every company, so the data model keeps it — but nothing branches on its value.
+export const CANTON = "VD" as const;
 
 export enum CompanyStatus {
   ACTIVE = "ACTIVE",
@@ -53,37 +36,6 @@ export interface Address {
   poBox: string;
   city: string;
   swissZipCode: string;
-}
-
-export interface BfsCommunity {
-  bfsId: number;
-  canton: string;
-  name: string;
-  registryOfCommerceId: number;
-}
-
-export interface RegistryOfCommerce {
-  registryOfCommerceId: number;
-  canton: string;
-  address1: string;
-  address2: string;
-  address3: string;
-  address4: string;
-  homepage: string;
-  url2: string;
-  url3: string;
-  url4: string;
-  url5: string;
-}
-
-export interface CompanySearchQuery {
-  name: string;
-  legalFormId?: number;
-  legalFormUid?: string;
-  registryOfCommerceId?: number;
-  legalSeatId?: number;
-  canton?: string;
-  activeOnly?: boolean;
 }
 
 export interface CompanyShort {

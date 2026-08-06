@@ -35,12 +35,12 @@ export function SearchForm({ recentSearches }: SearchFormProps) {
     <>
       <form onSubmit={handleSearch} className="relative group">
         <label htmlFor="company-search" className="sr-only">
-          Search by company name, UID, or Canton
+          Search by company name or UID
         </label>
         <Input
           id="company-search"
           variant="bottom"
-          placeholder="Search by company name, UID, or Canton..."
+          placeholder="Search by company name or UID..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           autoFocus

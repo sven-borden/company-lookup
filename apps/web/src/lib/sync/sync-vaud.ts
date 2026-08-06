@@ -1,7 +1,8 @@
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { companies, companyAddresses, officers, shareholders, cantonStats } from "@/lib/db/schema";
-import type { CompanyFull, CantonalEnrichment } from "@swiss-biz-hunter/types";
+import { companies, companyAddresses, cantonStats } from "@/lib/db/schema";
+import { CANTON } from "@swiss-biz-hunter/types";
+import type { CompanyFull } from "@swiss-biz-hunter/types";
 
 const DETAIL_CONCURRENCY = 25;
 const UPSERT_BATCH_SIZE = 100;
@@ -59,20 +60,17 @@ async function zefixGet<T>(path: string): Promise<T> {
   return res.json();
 }
 
-async function fetchCompaniesForPrefix(
-  prefix: string,
-  canton: string
-): Promise<Array<{ ehraid: number }>> {
+async function fetchCompaniesForPrefix(prefix: string): Promise<Array<{ ehraid: number }>> {
   try {
     return await zefixPost<Array<{ ehraid: number }>>("/api/v1/company/search", {
       name: `${prefix}*`,
-      canton,
+      canton: CANTON,
     });
   } catch (err) {
     if (err instanceof Error && err.message.includes("RESULTLIST_TO_LARGE")) {
       const results: Array<{ ehraid: number }> = [];
       for (const letter of "abcdefghijklmnopqrstuvwxyz") {
-        const sub = await fetchCompaniesForPrefix(`${prefix}${letter}`, canton);
+        const sub = await fetchCompaniesForPrefix(`${prefix}${letter}`);
         results.push(...sub);
       }
       return results;
@@ -81,7 +79,7 @@ async function fetchCompaniesForPrefix(
   }
 }
 
-function companyToRow(full: CompanyFull, canton: string) {
+function companyToRow(full: CompanyFull) {
   const sogcPub = full.sogcPub
     ? [...full.sogcPub].sort((a, b) => b.sogcDate.localeCompare(a.sogcDate)).slice(0, MAX_SOGC_PUB)
     : null;
@@ -92,7 +90,7 @@ function companyToRow(full: CompanyFull, canton: string) {
     chid: full.chid ?? null,
     name: full.name,
     status: full.status,
-    canton: full.canton ?? canton,
+    canton: full.canton ?? CANTON,
     legalSeat: full.legalSeat ?? null,
     legalSeatId: full.legalSeatId ?? null,
     legalFormId: full.legalForm?.id ?? null,
@@ -123,13 +121,8 @@ function companyToRow(full: CompanyFull, canton: string) {
   };
 }
 
-async function upsertBatch(
-  batch: Array<{ full: CompanyFull; enrichment?: CantonalEnrichment }>,
-  canton: string
-) {
-  const rows = batch.map(({ full }) => companyToRow(full, canton));
-
-  await db.insert(companies).values(rows).onConflictDoUpdate({
+async function upsertBatch(batch: CompanyFull[]) {
+  await db.insert(companies).values(batch.map(companyToRow)).onConflictDoUpdate({
     target: companies.uid,
     set: {
       ehraid: sql`excluded.ehraid`,
@@ -167,88 +160,55 @@ async function upsertBatch(
     },
   });
 
-  for (const { full: company, enrichment } of batch) {
-    if (company.address) {
-      await db.insert(companyAddresses).values({
-        companyUid: company.uid,
-        organisation: company.address.organisation ?? null,
-        careOf: company.address.careOf ?? null,
-        street: company.address.street ?? null,
-        houseNumber: company.address.houseNumber ?? null,
-        addon: company.address.addon ?? null,
-        poBox: company.address.poBox ?? null,
-        city: company.address.city ?? null,
-        swissZipCode: company.address.swissZipCode ?? null,
-      }).onConflictDoUpdate({
-        target: companyAddresses.companyUid,
-        set: {
-          organisation: sql`excluded.organisation`,
-          careOf: sql`excluded.care_of`,
-          street: sql`excluded.street`,
-          houseNumber: sql`excluded.house_number`,
-          addon: sql`excluded.addon`,
-          poBox: sql`excluded.po_box`,
-          city: sql`excluded.city`,
-          swissZipCode: sql`excluded.swiss_zip_code`,
-        },
-      });
-    }
+  for (const company of batch) {
+    if (!company.address) continue;
 
-    if (enrichment) {
-      await db.delete(officers).where(eq(officers.companyUid, company.uid));
-      await db.delete(shareholders).where(eq(shareholders.companyUid, company.uid));
-
-      if (enrichment.officers.length > 0) {
-        await db.insert(officers).values(
-          enrichment.officers.map((o) => ({
-            companyUid: company.uid,
-            name: o.name,
-            role: o.role ?? null,
-            signatureType: o.signatureType ?? null,
-            source: enrichment.source,
-            enrichedAt: new Date(enrichment.enrichedAt),
-          }))
-        );
-      }
-
-      if (enrichment.shareholders.length > 0) {
-        await db.insert(shareholders).values(
-          enrichment.shareholders.map((s) => ({
-            companyUid: company.uid,
-            name: s.name,
-            shares: s.shares ?? null,
-            source: enrichment.source,
-            enrichedAt: new Date(enrichment.enrichedAt),
-          }))
-        );
-      }
-    }
+    await db.insert(companyAddresses).values({
+      companyUid: company.uid,
+      organisation: company.address.organisation ?? null,
+      careOf: company.address.careOf ?? null,
+      street: company.address.street ?? null,
+      houseNumber: company.address.houseNumber ?? null,
+      addon: company.address.addon ?? null,
+      poBox: company.address.poBox ?? null,
+      city: company.address.city ?? null,
+      swissZipCode: company.address.swissZipCode ?? null,
+    }).onConflictDoUpdate({
+      target: companyAddresses.companyUid,
+      set: {
+        organisation: sql`excluded.organisation`,
+        careOf: sql`excluded.care_of`,
+        street: sql`excluded.street`,
+        houseNumber: sql`excluded.house_number`,
+        addon: sql`excluded.addon`,
+        poBox: sql`excluded.po_box`,
+        city: sql`excluded.city`,
+        swissZipCode: sql`excluded.swiss_zip_code`,
+      },
+    });
   }
 }
 
-export interface SyncCantonResult {
-  canton: string;
+export interface SyncVaudResult {
   synced: number;
   totalInDb: number;
 }
 
 /**
- * Discover and sync every company for a single canton from Zefix into the DB,
- * then refresh that canton's stats row. Handles oversized Zefix result sets by
- * recursing into name sub-prefixes (relies on the response body being included
- * in thrown errors so RESULTLIST_TO_LARGE can be detected).
+ * Discover and sync every Vaud company from Zefix into the DB, then refresh the
+ * canton stats row. Zefix has no "list all" endpoint, so discovery brute-forces
+ * name prefixes; oversized result sets are handled by recursing into
+ * sub-prefixes (which relies on the response body being included in thrown
+ * errors so RESULTLIST_TO_LARGE can be detected).
  *
  * Caller owns sync-log bookkeeping; this function only touches company data and
- * the cantonStats row. Throws on fatal failure for the canton.
+ * the cantonStats row. Throws on fatal failure.
  */
-export async function syncCanton(canton: string): Promise<SyncCantonResult> {
-  const cantonUpper = canton.toUpperCase();
-  console.log(`[sync] Canton ${cantonUpper}: starting parallel company discovery`);
+export async function syncVaud(): Promise<SyncVaudResult> {
+  console.log(`[sync] ${CANTON}: starting parallel company discovery`);
 
   const prefixResults = await Promise.all(
-    "abcdefghijklmnopqrstuvwxyz".split("").map((letter) =>
-      fetchCompaniesForPrefix(letter, cantonUpper)
-    )
+    "abcdefghijklmnopqrstuvwxyz".split("").map((letter) => fetchCompaniesForPrefix(letter))
   );
 
   const seen = new Set<number>();
@@ -258,7 +218,7 @@ export async function syncCanton(canton: string): Promise<SyncCantonResult> {
       if (!seen.has(c.ehraid)) { seen.add(c.ehraid); discovered.push(c); }
     }
   }
-  console.log(`[sync] Canton ${cantonUpper}: discovery complete — ${discovered.length} companies`);
+  console.log(`[sync] ${CANTON}: discovery complete — ${discovered.length} companies`);
 
   const limit = createPool(DETAIL_CONCURRENCY);
   let fetched = 0;
@@ -273,29 +233,28 @@ export async function syncCanton(canton: string): Promise<SyncCantonResult> {
           return null;
         }
         const n = ++fetched;
-        if (n % 100 === 0) console.log(`[sync] Canton ${cantonUpper}: fetched ${n}/${discovered.length}`);
-        return { full };
+        if (n % 100 === 0) console.log(`[sync] ${CANTON}: fetched ${n}/${discovered.length}`);
+        return full;
       })
     )
   );
 
-  const validCompanies = fetchedCompanies.filter(Boolean) as Array<{ full: CompanyFull }>;
+  const validCompanies = fetchedCompanies.filter(Boolean) as CompanyFull[];
 
   for (let i = 0; i < validCompanies.length; i += UPSERT_BATCH_SIZE) {
-    const batch = validCompanies.slice(i, i + UPSERT_BATCH_SIZE);
-    await upsertBatch(batch, cantonUpper);
-    console.log(`[sync] Canton ${cantonUpper}: upserted ${Math.min(i + UPSERT_BATCH_SIZE, validCompanies.length)}/${validCompanies.length}`);
+    await upsertBatch(validCompanies.slice(i, i + UPSERT_BATCH_SIZE));
+    console.log(`[sync] ${CANTON}: upserted ${Math.min(i + UPSERT_BATCH_SIZE, validCompanies.length)}/${validCompanies.length}`);
   }
 
   const [statsRow] = await db
     .select({ count: sql<number>`COUNT(*)` })
     .from(companies)
-    .where(eq(companies.canton, cantonUpper));
+    .where(eq(companies.canton, CANTON));
 
   const totalInDb = Number(statsRow.count);
 
   await db.insert(cantonStats).values({
-    canton: cantonUpper,
+    canton: CANTON,
     totalCompanies: totalInDb,
     lastSyncedAt: new Date(),
   }).onConflictDoUpdate({
@@ -303,5 +262,5 @@ export async function syncCanton(canton: string): Promise<SyncCantonResult> {
     set: { totalCompanies: totalInDb, lastSyncedAt: new Date() },
   });
 
-  return { canton: cantonUpper, synced: validCompanies.length, totalInDb };
+  return { synced: validCompanies.length, totalInDb };
 }
