@@ -31,6 +31,18 @@ RUN --mount=type=cache,target=/root/.npm \
 # Builder: compile the Next.js standalone bundle
 ##############################################
 FROM base AS builder
+# Coolify passes build-time variables as --build-args; unless they are declared
+# here they never reach `next build`. Only this stage sees them — the shipped
+# "runner" stage gets its values injected at container start instead.
+ARG DATABASE_URL
+ARG ZEFIX_USERNAME
+ARG ZEFIX_PASSWORD
+ARG ZEFIX_API_BASE_URL
+ENV DATABASE_URL=$DATABASE_URL \
+    ZEFIX_USERNAME=$ZEFIX_USERNAME \
+    ZEFIX_PASSWORD=$ZEFIX_PASSWORD \
+    ZEFIX_API_BASE_URL=$ZEFIX_API_BASE_URL
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
@@ -40,7 +52,7 @@ RUN npm run build
 ##############################################
 FROM base AS runner
 ENV NODE_ENV=production \
-    PORT=3001 \
+    PORT=3000 \
     HOSTNAME=0.0.0.0
 
 # Run as a non-root user.
@@ -54,6 +66,6 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
 
 USER nextjs
-EXPOSE 3001
+EXPOSE 3000
 
 CMD ["node", "apps/web/server.js"]
