@@ -6,7 +6,26 @@ const { mockExecute } = vi.hoisted(() => ({
 
 vi.mock("./index", () => ({ db: { execute: mockExecute } }));
 
-import { purgeOtherCantons } from "./init";
+import { initializeDatabase, purgeOtherCantons } from "./init";
+
+/**
+ * Count the chunks of a Drizzle SQL object that become bind parameters
+ * ($1, $2, ...) at execution time.
+ *
+ * Static text is a StringChunk (its `value` is a string array) and an embedded
+ * `sql.raw(...)` is a nested SQL object (it has `queryChunks`); both are
+ * inlined. Anything else is an interpolated value, which Drizzle binds.
+ */
+function bindParamCount(query: unknown): number {
+  const chunks = (query as { queryChunks?: unknown[] })?.queryChunks ?? [];
+
+  return chunks.reduce<number>((total, chunk) => {
+    if (typeof chunk !== "object" || chunk === null) return total + 1;
+    if (Array.isArray((chunk as { value?: unknown }).value)) return total; // StringChunk
+    if ("queryChunks" in chunk) return total + bindParamCount(chunk);      // nested SQL
+    return total + 1;
+  }, 0);
+}
 
 /** Render a Drizzle SQL object's static chunks so tests can match on shape. */
 function sqlText(query: unknown): string {
@@ -62,5 +81,34 @@ describe("purgeOtherCantons", () => {
     await purgeOtherCantons();
 
     expect(sqlText(mockExecute.mock.calls[0][0])).toContain("canton <>");
+  });
+});
+
+describe("initializeDatabase", () => {
+  // Regression: PostgreSQL rejects bind parameters in DDL. A partial index
+  // whose predicate carried $1 failed at boot with "42P18: could not determine
+  // data type of parameter $1", which aborted initialization before the
+  // remaining indexes were created and before the purge ever ran.
+  it("issues no statement containing a bind parameter", async () => {
+    mockExecute.mockResolvedValue({ count: 0 });
+
+    await initializeDatabase();
+
+    const offenders = mockExecute.mock.calls
+      .map(([query]) => ({ sql: sqlText(query), params: bindParamCount(query) }))
+      .filter((call) => call.params > 0);
+
+    expect(offenders).toEqual([]);
+  });
+
+  it("creates the partial canton index used by the purge", async () => {
+    mockExecute.mockResolvedValue({ count: 0 });
+
+    await initializeDatabase();
+
+    const statements = mockExecute.mock.calls.map(([query]) => sqlText(query));
+    expect(statements.some((s) => s.includes("idx_companies_non_target_canton"))).toBe(true);
+    expect(statements.some((s) => s.includes("DROP INDEX IF EXISTS idx_companies_canton"))).toBe(true);
+    expect(statements.some((s) => s.includes("idx_companies_name ON companies(name)"))).toBe(true);
   });
 });

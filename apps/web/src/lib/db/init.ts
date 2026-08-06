@@ -4,6 +4,13 @@ import { CANTON } from "@swiss-biz-hunter/types";
 
 const PURGE_BATCH_SIZE = 20000;
 
+// Inlined as a SQL literal rather than a bind parameter. PostgreSQL rejects
+// parameters in DDL — a partial index predicate carrying $1 fails with
+// "42P18: could not determine data type of parameter $1" — and the purge
+// statements below use the same form for consistency. CANTON is a compile-time
+// constant, never user input, so there is nothing to inject.
+const CANTON_SQL = sql.raw(`'${CANTON}'`);
+
 /**
  * Drop every company outside the target canton. The platform used to sync all
  * 26 cantons; those rows are now dead weight.
@@ -24,7 +31,7 @@ export async function purgeOtherCantons() {
   for (;;) {
     const result = await db.execute(sql`
       DELETE FROM companies WHERE ctid IN (
-        SELECT ctid FROM companies WHERE canton <> ${CANTON} LIMIT ${PURGE_BATCH_SIZE}
+        SELECT ctid FROM companies WHERE canton <> ${CANTON_SQL} LIMIT ${sql.raw(String(PURGE_BATCH_SIZE))}
       )
     `);
 
@@ -35,7 +42,7 @@ export async function purgeOtherCantons() {
     console.log(`[purge] removed ${removed} non-${CANTON} companies so far`);
   }
 
-  await db.execute(sql`DELETE FROM canton_stats WHERE canton <> ${CANTON}`);
+  await db.execute(sql`DELETE FROM canton_stats WHERE canton <> ${CANTON_SQL}`);
 
   if (removed > 0) {
     console.log(`[purge] done — ${removed} non-${CANTON} companies removed. Run VACUUM (FULL, ANALYZE) companies to reclaim disk.`);
@@ -154,7 +161,7 @@ export async function initializeDatabase() {
   // which indexed a column that is now the same value on every row.
   await db.execute(sql`
     CREATE INDEX IF NOT EXISTS idx_companies_non_target_canton
-    ON companies(canton) WHERE canton <> ${CANTON}
+    ON companies(canton) WHERE canton <> ${CANTON_SQL}
   `);
   await db.execute(sql`DROP INDEX IF EXISTS idx_companies_canton`);
   // Serves /browse, which is ORDER BY name with LIMIT/OFFSET. The GIN trigram
